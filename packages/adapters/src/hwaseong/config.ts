@@ -1,19 +1,19 @@
 /**
  * 화성시 어댑터 설정 — URL/셀렉터를 한 곳에 모아 사이트 변경 시 이 파일만 수정.
  *
- * TODO(운영 반영 전): baseUrl은 검색 기반 후보(화성시지체장애인협회 홈페이지,
- * docs/site-research.md 참고) — 게시대 접수 메뉴 위치와 실제 접수 도메인을 방문
- * 확인 후 paths/셀렉터를 실측값으로 교체하고 fixtures를 실제 HTML 스냅샷으로 갱신할 것.
- * 셀렉터는 전형적인 게시판형 신청 사이트 구조를 가정한 플레이스홀더다.
+ * baseUrl은 화성시 현수막 게시대 접수처 실주소 (사용자 확인, 진입점 /index_hsdr.jsp).
+ * TODO(운영 반영 전): paths/셀렉터는 아직 플레이스홀더 — 사이트 실측 후
+ * 실제 메뉴 경로·폼 셀렉터로 교체하고 fixtures를 실제 HTML 스냅샷으로 갱신할 것.
  */
 export const HWASEONG = {
-  baseUrl: "http://www.kappdhs.or.kr",
+  baseUrl: "https://www.hsdr.or.kr",
   paths: {
-    login: "/member/login",
-    boards: "/banner/boards",
-    schedule: "/banner/notice",
-    apply: "/banner/apply",
-    results: "/banner/results",
+    home: "/index_hsdr.jsp",
+    login: "/member/login",       // TODO: 실측
+    boards: "/banner/boards",     // TODO: 실측
+    schedule: "/banner/notice",   // TODO: 실측
+    apply: "/banner/apply",       // TODO: 실측
+    results: "/banner/results",   // TODO: 실측
   },
   selectors: {
     login: {

@@ -4,12 +4,12 @@
 
 -- 운영 주체: 지자체가 직접 운영하지 않고 수탁 기관(화성시는 장애인 단체)에 위임하는 구조.
 -- operator_name/operator_contact는 실제 수탁 기관 확인 후 채울 것 (TODO).
--- 후보 URL/기관명은 웹 검색 기반 (docs/site-research.md) — 실제 방문 확인 전까지 미검증.
+-- URL 출처: docs/site-research.md (화성은 사용자 확인 완료)
 insert into municipalities (code, name, operator_type, operator_name, site_url, adapter_key, status, capabilities) values
   (
     'hwaseong', '화성시', 'welfare_org',
-    '화성시지체장애인협회 (확인 필요)',
-    'http://www.kappdhs.or.kr',                 -- TODO(확인 필요): 협회 홈페이지. 게시대 접수가 이 도메인인지 별도 도메인인지 방문 확인
+    '장애인 단체 수탁 (기관명 확인 필요)',
+    'https://www.hsdr.or.kr/index_hsdr.jsp',    -- 화성시 현수막 게시대 접수처 (사용자 제공)
     'hwaseong', 'beta',
     '{"autoSubmit": true, "onlinePayment": false, "captchaType": "image"}'
   ),
