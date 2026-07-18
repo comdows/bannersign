@@ -16,17 +16,9 @@ export async function createTenant(formData: FormData): Promise<ActionResult> {
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, message: "로그인이 필요합니다." };
 
-  const { data: tenant, error } = await supabase
-    .from("tenants")
-    .insert({ name })
-    .select("id")
-    .single();
-  if (error || !tenant) return { ok: false, message: error?.message ?? "생성 실패" };
-
-  const { error: memberErr } = await supabase
-    .from("tenant_members")
-    .insert({ tenant_id: tenant.id, user_id: user.id, role: "owner" });
-  if (memberErr) return { ok: false, message: memberErr.message };
+  // RPC가 테넌트 + owner 멤버십을 한 트랜잭션으로 생성 (RLS 반환 제약 회피)
+  const { error } = await supabase.rpc("create_tenant_with_owner", { p_name: name });
+  if (error) return { ok: false, message: error.message };
 
   revalidatePath("/settings");
   return { ok: true, message: "워크스페이스가 생성되었습니다." };

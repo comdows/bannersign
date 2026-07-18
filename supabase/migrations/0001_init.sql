@@ -243,7 +243,8 @@ create table notifications (
   status text not null default 'pending' check (status in ('pending', 'sent', 'failed')),
   sent_at timestamptz,
   created_at timestamptz not null default now(),
-  unique (type, ref_id, channel, user_id)  -- 멱등키
+  -- 멱등키: user_id가 null(테넌트 전체 알림)이어도 중복이 막히도록 nulls not distinct
+  unique nulls not distinct (type, ref_id, channel, user_id)
 );
 
 create table crawl_runs (
@@ -293,23 +294,48 @@ alter table notifications enable row level security;
 alter table crawl_runs enable row level security;
 
 -- 테넌시 자체
+-- 테넌트 생성은 create_tenant_with_owner() RPC로만 (직접 insert 정책 없음 —
+-- RLS 하 self-join 우회로 남의 테넌트에 가입하는 취약점 방지)
 create policy tenants_select on tenants for select
   using (id in (select auth_tenant_ids()));
-create policy tenants_insert on tenants for insert
-  with check (auth.uid() is not null);
 create policy tenants_update on tenants for update
   using (id in (select tenant_id from tenant_members where user_id = auth.uid() and role = 'owner'));
 
 create policy members_select on tenant_members for select
   using (tenant_id in (select auth_tenant_ids()));
--- 첫 멤버(자기 자신을 owner로) 또는 owner의 멤버 추가
+-- 멤버 추가는 해당 테넌트 owner만 (첫 멤버는 RPC가 security definer로 생성)
 create policy members_insert on tenant_members for insert
   with check (
-    (user_id = auth.uid() and not exists (select 1 from tenant_members m where m.tenant_id = tenant_members.tenant_id))
-    or tenant_id in (select tenant_id from tenant_members where user_id = auth.uid() and role = 'owner')
+    tenant_id in (select tenant_id from tenant_members where user_id = auth.uid() and role = 'owner')
   );
 create policy members_delete on tenant_members for delete
   using (tenant_id in (select tenant_id from tenant_members where user_id = auth.uid() and role = 'owner'));
+
+-- 온보딩: 테넌트 + 본인 owner 멤버십을 한 트랜잭션으로 생성.
+-- security definer라 RLS를 우회하며, 반환값이 RLS select에 막히는 문제도 없음.
+create or replace function create_tenant_with_owner(p_name text)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_tenant uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+  if p_name is null or length(trim(p_name)) = 0 then
+    raise exception 'tenant name required';
+  end if;
+  insert into tenants (name) values (trim(p_name)) returning id into v_tenant;
+  insert into tenant_members (tenant_id, user_id, role) values (v_tenant, auth.uid(), 'owner');
+  return v_tenant;
+end;
+$$;
+
+revoke all on function create_tenant_with_owner(text) from public;
+grant execute on function create_tenant_with_owner(text) to authenticated;
 
 -- 공용 레지스트리: 로그인 사용자 read, write는 service_role(RLS 우회)만
 create policy municipalities_read on municipalities for select using (auth.uid() is not null);
