@@ -1,54 +1,60 @@
 /**
- * 화성시 어댑터 설정 — URL/셀렉터를 한 곳에 모아 사이트 변경 시 이 파일만 수정.
+ * 화성시 어댑터 설정 — 2026-07-18 실측 (https://www.hsdr.or.kr).
+ * 운영: 두리하나화성장애인자립센터 (화성시 현수막 지정게시대 수탁, TEL 031-366-7922)
  *
- * baseUrl은 화성시 현수막 게시대 접수처 실주소 (사용자 확인, 진입점 /index_hsdr.jsp).
- * TODO(운영 반영 전): paths/셀렉터는 아직 플레이스홀더 — 사이트 실측 후
- * 실제 메뉴 경로·폼 셀렉터로 교체하고 fixtures를 실제 HTML 스냅샷으로 갱신할 것.
+ * 실측 확인 사항:
+ * - 인코딩 EUC-KR, uriad.com 솔루션 기반 (구로 guro.uriad.com 등과 동일 벤더)
+ * - 접수 기간: 매월 1일 00:00 ~ 5일 24:00 (sub03.jsp hidden 필드 r_STARTDAY/r_ENDDAY)
+ * - 추첨신청(sub03.jsp): 로그인 필수, 규약 동의 체크(#check) 후 goreserve() 제출.
+ *   ※ 동의 이후 게시대 선택 단계는 로그인 세션 필요 — 실계정 dry-run으로 후속 실측 (TODO)
+ * - 게시대 목록(sub02.jsp): 198개, fnBorder('B40','<id>') / fnMapSmallShow(lng,lat,name,addr)
+ * - 시안 등록: sub09-04.jsp 대화방(시안등록) — 추첨 접수 시 최종 시안 첨부 필수
+ * - 결과 확인: top_mypage.jsp 나의신청현황 (로그인 필요, TODO 실측)
+ * - 로그인 폼에 캡차 없음 (form1, #id, #pw, goLogin())
  */
 export const HWASEONG = {
   baseUrl: "https://www.hsdr.or.kr",
+  /** 사이트 내부 사업소 코드 (sub03.jsp hidden sBizoffcd) */
+  bizOfficeCode: "B40",
   paths: {
     home: "/index_hsdr.jsp",
-    login: "/member/login",       // TODO: 실측
-    boards: "/banner/boards",     // TODO: 실측
-    schedule: "/banner/notice",   // TODO: 실측
-    apply: "/banner/apply",       // TODO: 실측
-    results: "/banner/results",   // TODO: 실측
+    login: "/top_login.jsp",
+    join: "/top_join.jsp",
+    boards: "/sub02.jsp",          // 게시대현황및위치안내
+    dailyStatus: "/sub02-02.jsp",  // 일일신청현황
+    applyLottery: "/sub03.jsp",    // 추첨신청하기 (매월 1~5일)
+    applyRealtime: "/sub04_all.jsp", // 미배정게시대신청하기 (실시간)
+    mypage: "/top_mypage.jsp",     // 나의신청현황 (결과 확인)
+    notice: "/sub09.jsp",
+    designRoom: "/sub09-04.jsp",   // 대화방(시안등록)
+    terms: "/reserved.jsp",        // 규약사항 팝업
+    designGuidePdf: "/files/guide_20250602.pdf",
+    manualPdf: "/files/manual_2026.pdf",
   },
   selectors: {
     login: {
-      username: "#userId",
-      password: "#userPw",
-      submit: "button[type=submit]",
-      // 로그인 성공 판정: 로그아웃 링크 존재
+      form: "form[name=form1]",
+      username: "#id",
+      password: "#pw",
+      // goLogin() onsubmit — 폼 submit으로 트리거
       loggedIn: "a[href*='logout']",
-      failMessage: ".login-error",
     },
     boards: {
-      row: "table.board-list tbody tr",
-      cells: { externalId: 0, name: 1, address: 2, slots: 3, fee: 4 },
+      // 게시대 행: fnBorder('B40','<externalId>') 앵커가 있는 tr
+      rowAnchor: "a[onclick*='fnBorder']",
     },
-    apply: {
-      businessName: "#bizName",
-      bizRegNo: "#bizRegNo",
-      representative: "#repName",
-      phone: "#phone",
-      email: "#email",
-      address: "#address",
-      boardSelect: "#boardSelect",
-      fileInput: "input[type=file]",
-      captchaImage: "img.captcha",
-      captchaInput: "#captchaAnswer",
-      agree: "#agreeTerms",
-      submit: "#btnSubmit",
-      // 접수기간 아님 안내 텍스트 후보
-      notOpenText: /접수\s*기간이?\s*아닙니다|신청\s*기간이?\s*아닙니다/,
-      receiptNo: ".receipt-no",
-      alreadySubmittedText: /이미\s*신청/,
-    },
-    results: {
-      row: "table.result-list tbody tr",
-      cells: { boardName: 0, applicantName: 1, receiptNo: 2, outcome: 3 },
+    applyLottery: {
+      form: "form[name=form1]",
+      agreeCheckbox: "#check",
+      submitButton: "input[name=resrved_ok]", // goreserve() 이미지 버튼
+      // 접수 기간 hidden 필드 (관리자 설정값)
+      hidden: {
+        startDay: "input[name=r_STARTDAY]",
+        endDay: "input[name=r_ENDDAY]",
+        startTime: "input[name=r_STARTTIME]",
+        endTime: "input[name=r_ENDTIME]",
+        targetMonth: "input[name=src_month]", // 예: 202608 (게시 대상월)
+      },
     },
   },
 } as const;
