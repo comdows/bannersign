@@ -44,6 +44,16 @@ cd apps/worker && cp .env.example .env && pnpm dev
 
 Supabase 마이그레이션: `supabase db push` (또는 SQL 에디터에서 `supabase/migrations/*.sql` 순서대로 실행), 이후 `supabase/seed.sql`.
 
+## 운영 주체 (수탁 구조)
+
+현수막 게시대는 지자체가 직접 운영하지 않고 **수탁 기관에 위임**하는 경우가 대부분이다
+(화성시: 장애인 단체 수탁, 타 지자체는 옥외광고협회 지회·민간 대행 등 제각각).
+신청 사이트·회원가입·규정·문의처가 모두 이 수탁 기관 기준이므로:
+
+- `municipalities.operator_type` (city / association / welfare_org / private) + `operator_name`, `operator_contact`로 관리
+- 어댑터 조사 시 **지자체 홈페이지가 아니라 수탁 기관의 신청 사이트**를 기준으로 실측할 것
+- 사용자 계정도 수탁 기관 사이트 계정임 (지자체 통합 로그인 아님)
+
 ## 신규 지자체 추가
 
 1. `supabase` seed 또는 admin UI로 `municipalities` 레코드 추가 (`adapter_key` 지정)

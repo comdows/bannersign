@@ -20,7 +20,10 @@ export interface MunicipalityRow {
   id: string;
   code: string;
   name: string;
-  operator_type: "association" | "private" | "city";
+  /** 게시대 운영 주체 — 대부분 수탁 기관(welfare_org: 장애인 단체 등)에 위임됨 */
+  operator_type: "city" | "association" | "welfare_org" | "private";
+  operator_name: string | null;
+  operator_contact: string | null;
   site_url: string;
   adapter_key: string;
   adapter_version: number;

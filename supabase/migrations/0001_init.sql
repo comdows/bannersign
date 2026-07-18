@@ -39,7 +39,13 @@ create table municipalities (
   id uuid primary key default gen_random_uuid(),
   code text not null unique,             -- 'hwaseong'
   name text not null,                    -- '화성시'
-  operator_type text not null default 'association' check (operator_type in ('association', 'private', 'city')),
+  -- 게시대 운영은 대부분 지자체가 직접 하지 않고 수탁 기관에 위임한다:
+  --   city: 지자체 직영 / association: 옥외광고협회 지회
+  --   welfare_org: 장애인 단체 등 복지단체 수탁 (화성시 등)
+  --   private: 민간 대행사
+  operator_type text not null default 'welfare_org' check (operator_type in ('city', 'association', 'welfare_org', 'private')),
+  operator_name text,                    -- 실제 수탁 기관명 (예: 'OO장애인협회 화성시지회')
+  operator_contact text,                 -- 수탁 기관 연락처 (문의/분쟁 대응용)
   site_url text not null,
   adapter_key text not null,             -- packages/adapters 레지스트리 키
   adapter_version int not null default 1,

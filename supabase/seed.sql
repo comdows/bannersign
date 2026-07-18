@@ -2,16 +2,20 @@
 -- 게시대 목록과 정확한 규격/일정은 어댑터 크롤 또는 admin UI로 갱신한다.
 -- 아래 규격/일정 값은 개발용 플레이스홀더 — 운영 반영 전 각 지자체 공고문 기준으로 검수할 것.
 
-insert into municipalities (code, name, operator_type, site_url, adapter_key, status, capabilities) values
+-- 운영 주체: 지자체가 직접 운영하지 않고 수탁 기관(화성시는 장애인 단체)에 위임하는 구조.
+-- operator_name/operator_contact는 실제 수탁 기관 확인 후 채울 것 (TODO).
+insert into municipalities (code, name, operator_type, operator_name, site_url, adapter_key, status, capabilities) values
   (
-    'hwaseong', '화성시', 'association',
-    'https://example-hwaseong-banner.kr',       -- TODO: 실제 화성시 게시대 신청 사이트 URL로 교체
+    'hwaseong', '화성시', 'welfare_org',
+    null,                                       -- TODO: 화성시 게시대 수탁 장애인 단체명 확인 후 입력
+    'https://example-hwaseong-banner.kr',       -- TODO: 실제 수탁 기관 신청 사이트 URL로 교체
     'hwaseong', 'beta',
     '{"autoSubmit": true, "onlinePayment": false, "captchaType": "image"}'
   ),
   (
-    'osan', '오산시', 'association',
-    'https://example-osan-banner.kr',           -- TODO: 실제 오산시 게시대 신청 사이트 URL로 교체
+    'osan', '오산시', 'welfare_org',
+    null,                                       -- TODO: 오산시 수탁 기관 확인 (지자체마다 위임처가 다름)
+    'https://example-osan-banner.kr',           -- TODO: 실제 수탁 기관 신청 사이트 URL로 교체
     'osan', 'beta',
     '{"autoSubmit": true, "onlinePayment": false, "captchaType": "unknown"}'
   )
