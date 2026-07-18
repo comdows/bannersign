@@ -104,6 +104,41 @@ export function parseLotteryWindowFields(html: string): LotteryWindowFields | nu
   };
 }
 
+/**
+ * 마이페이지(top_mypage.jsp 당첨현황 / top_mypage_reserved.jsp 추첨신청현황) 결과 행 파서.
+ * uriad 결과는 공개 페이지가 아니라 로그인 후 개인 마이페이지에 있으므로,
+ * worker의 결과 수집 잡이 사용자 credential로 로그인한 뒤 이 파서를 호출한다.
+ */
+export interface MypageResultRow {
+  applicantName?: string;
+  boardName?: string;
+  receiptNo?: string;
+  outcome: "selected" | "rejected" | "unknown";
+  raw: Record<string, unknown>;
+}
+
+export function parseMypageResults(html: string): MypageResultRow[] {
+  const root = parse(html);
+  const rows: MypageResultRow[] = [];
+  for (const tr of root.querySelectorAll("tr")) {
+    const cells = tr.querySelectorAll("td").map((td) => td.text.trim());
+    if (cells.length < 2) continue;
+    const joined = cells.join(" ");
+    // 데이터 행 판별: 날짜(MM/DD 또는 YYYY-MM-DD) + 업체명 패턴
+    if (!/\d{2}\/\d{2}|\d{4}-\d{2}-\d{2}/.test(joined)) continue;
+    const outcome = /당첨|선정/.test(joined)
+      ? "selected"
+      : /탈락|미당첨|미선정/.test(joined)
+        ? "rejected"
+        : "unknown";
+    const receiptNo = /\b(\d{4}-\d{2}-\d{3,})\b/.exec(joined)?.[1];
+    const applicantName = cells.find((c) => /주식회사|㈜|\(주\)|[가-힣]{2,}/.test(c) && !/\d{2}\/\d{2}/.test(c));
+    const boardName = cells.find((c) => /\(\d+\*\d+\)|사거리|삼거리|입구|앞|역/.test(c));
+    rows.push({ applicantName, boardName, receiptNo, outcome, raw: { cells } });
+  }
+  return rows;
+}
+
 const KST = "+09:00";
 
 /** hidden 필드 → 창구 인스턴스. 접수월은 게시 대상월(src_month)의 전월. */

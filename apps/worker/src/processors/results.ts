@@ -9,6 +9,11 @@ import { logger } from "../logger.js";
 /**
  * 결과 수집: fetchResults → results 테이블 저장 → 접수번호/사업자명 매칭 → 알림.
  * 접수번호 정확 일치만 자동 매칭(exact), 이름 매칭은 fuzzy로 저장 후 관리자 확인 큐 경유.
+ *
+ * TODO(uriad 계열): 결과가 공개 페이지가 아니라 로그인 후 개인 마이페이지(top_mypage.jsp)에
+ * 있다. 현재는 미인증 CrawlContext로 fetchResults를 호출해 uriad 사이트에선 0건이 나온다.
+ * 후속: 이 창구의 submitted 잡별로 사용자 credential로 로그인(login())한 뒤 fetchResults를
+ * 호출해 각 사용자 마이페이지를 파싱하도록 잡을 분리한다.
  */
 export async function processResultsJob(bullJob: Job): Promise<void> {
   const payload = resultsJobPayloadSchema.parse(bullJob.data);

@@ -15,7 +15,22 @@ blog.naver.com/s3833323)의 지자체별 포스트 30건 크롤 + 각 사이트 
 
 | 지자체 | 접수처 | 수탁 기관 | bizoff | 상태 |
 |---|---|---|---|---|
-| **화성시** | hsdr.or.kr | 두리하나화성장애인자립센터 (031-366-7922) | B40 | **실측 완료** — 접수 매월 1~5일 추첨, 게시대 197곳(600×70, 13,000원/7일), 디자인 규정 PDF 확보, 어댑터 beta(autoSubmit) |
+| **화성시** | hsdr.or.kr | 두리하나화성장애인자립센터 (031-366-7922) | B40 | **로그인 후 전체 플로우까지 실측 완료** — 접수 매월 1~5일 추첨, 게시대 197곳, 디자인 규정 PDF 확보. 신청: top_login → sub03 규약동의 → reserved_list.jsp(게시대 chkval 체크 + adkind 선택 + filename01 시안 첨부) → reserved_save.jsp 제출. 결과: 로그인 후 top_mypage.jsp(당첨현황)/top_mypage_reserved.jsp(신청현황). 어댑터 submit/results 구현 완료 |
+
+### 화성 추첨신청 플로우 (2026-07-18 인증 실측)
+
+```
+top_login.jsp (id/pw 평문, 캡차·히든 없음)
+  → sub03.jsp   규약동의 #check → goreserve() [기간 1~5일 체크]
+  → reserved_list.jsp   게시대 선택+시안 첨부
+       - 게시대: chkval01.. 체크박스 (행에 게시대명, 목록 순서 대응)
+       - 광고종류: select[name=adkind] (0 해당없음/1 남성수술·비뇨기과/2 금융·대출/3 국제결혼)
+       - 시안: input[name=filename01] type=file (jpg/gif)
+       - 폼 action=reserved_save.jsp
+  → reserved_save.jsp   최종 제출 (juminno/resname/pass 등은 로그인 세션에서 자동)
+```
+결과는 공개 페이지가 아니라 개인 마이페이지 → worker 결과 수집 잡이 사용자
+credential로 로그인해 top_mypage를 파싱해야 함 (uriad 공통).
 | 시흥시 | siheung.uriad.com | (확인 필요) | — | sub03 r_STARTDAY까지 동일 구조 확인 — 어댑터 등록(beta, autoSubmit=false) |
 | 오산시 | osankoaa.or.kr | 오산시광고협회 | B30 | uriad 템플릿이나 sub03에 r_STARTDAY 미확인(추첨 경로 상이 가능) — 어댑터 등록(autoSubmit=false) |
 | 서울 강서구 | gssi.uriad.com | 강서구시설관리공단 | — | 디렉토리 등록 |

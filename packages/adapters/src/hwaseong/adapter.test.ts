@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parse } from "node-html-parser";
 import { describe, expect, it } from "vitest";
 import { parseBoardList, parseLotteryWindowFields, windowFromLotteryFields } from "../uriad/parsers.js";
 
@@ -43,5 +44,16 @@ describe("hwaseong parsers (실HTML 픽스처 회귀, 2026-07-18 수집)", () =>
     expect(w.targetPeriodStart).toBe("2026-08-01T00:00:00+09:00");
     expect(w.targetPeriodEnd).toBe("2026-08-31T23:59:00+09:00");
     expect(w.selectionMethod).toBe("lottery");
+  });
+
+  it("maps board name to chkval checkbox row (reserved_list.jsp)", () => {
+    const root = parse(fixture("reserved_list.html"));
+    const rows = root
+      .querySelectorAll("tr")
+      .filter((tr) => tr.querySelector("input[name^=chkval]"));
+    expect(rows.length).toBeGreaterThanOrEqual(2);
+    const first = rows[0]!;
+    expect(first.text).toContain("배양리입구");
+    expect(first.querySelector("input[name^=chkval]")).toBeTruthy();
   });
 });
