@@ -4,18 +4,19 @@
 
 -- 운영 주체: 지자체가 직접 운영하지 않고 수탁 기관(화성시는 장애인 단체)에 위임하는 구조.
 -- operator_name/operator_contact는 실제 수탁 기관 확인 후 채울 것 (TODO).
+-- 후보 URL/기관명은 웹 검색 기반 (docs/site-research.md) — 실제 방문 확인 전까지 미검증.
 insert into municipalities (code, name, operator_type, operator_name, site_url, adapter_key, status, capabilities) values
   (
     'hwaseong', '화성시', 'welfare_org',
-    null,                                       -- TODO: 화성시 게시대 수탁 장애인 단체명 확인 후 입력
-    'https://example-hwaseong-banner.kr',       -- TODO: 실제 수탁 기관 신청 사이트 URL로 교체
+    '화성시지체장애인협회 (확인 필요)',
+    'http://www.kappdhs.or.kr',                 -- TODO(확인 필요): 협회 홈페이지. 게시대 접수가 이 도메인인지 별도 도메인인지 방문 확인
     'hwaseong', 'beta',
     '{"autoSubmit": true, "onlinePayment": false, "captchaType": "image"}'
   ),
   (
-    'osan', '오산시', 'welfare_org',
-    null,                                       -- TODO: 오산시 수탁 기관 확인 (지자체마다 위임처가 다름)
-    'https://example-osan-banner.kr',           -- TODO: 실제 수탁 기관 신청 사이트 URL로 교체
+    'osan', '오산시', 'association',
+    '한국옥외광고협회 오산시지부 (확인 필요)',
+    'https://www.osankoaa.or.kr',               -- TODO(확인 필요): 지정게시대 현황 페이지 존재 확인됨, 접수 플로우 검증 필요
     'osan', 'beta',
     '{"autoSubmit": true, "onlinePayment": false, "captchaType": "unknown"}'
   )

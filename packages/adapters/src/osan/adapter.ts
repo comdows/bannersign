@@ -10,7 +10,7 @@ export const osanAdapter: MunicipalityAdapter = {
   meta: {
     key: "osan",
     nameKo: "오산시",
-    siteUrl: "https://example-osan-banner.kr", // TODO: 실제 사이트 URL
+    siteUrl: "https://www.osankoaa.or.kr", // TODO(확인 필요): 오산 지정게시대 접수 사이트 후보 — docs/site-research.md
     captchaType: "unknown",
     autoSubmit: false,
     onlinePayment: false,

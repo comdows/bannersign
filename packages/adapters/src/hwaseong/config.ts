@@ -1,12 +1,13 @@
 /**
  * 화성시 어댑터 설정 — URL/셀렉터를 한 곳에 모아 사이트 변경 시 이 파일만 수정.
  *
- * TODO(운영 반영 전): 실제 화성시 현수막 게시대 신청 사이트를 조사해
- * baseUrl과 셀렉터를 실측값으로 교체하고 fixtures를 실제 HTML 스냅샷으로 갱신할 것.
- * 현재 값은 전형적인 게시판형 신청 사이트 구조를 가정한 플레이스홀더다.
+ * TODO(운영 반영 전): baseUrl은 검색 기반 후보(화성시지체장애인협회 홈페이지,
+ * docs/site-research.md 참고) — 게시대 접수 메뉴 위치와 실제 접수 도메인을 방문
+ * 확인 후 paths/셀렉터를 실측값으로 교체하고 fixtures를 실제 HTML 스냅샷으로 갱신할 것.
+ * 셀렉터는 전형적인 게시판형 신청 사이트 구조를 가정한 플레이스홀더다.
  */
 export const HWASEONG = {
-  baseUrl: "https://example-hwaseong-banner.kr",
+  baseUrl: "http://www.kappdhs.or.kr",
   paths: {
     login: "/member/login",
     boards: "/banner/boards",
