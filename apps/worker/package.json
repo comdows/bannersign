@@ -1,0 +1,28 @@
+{
+  "name": "@youni/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@youni/adapters": "workspace:*",
+    "@youni/ai": "workspace:*",
+    "@youni/core": "workspace:*",
+    "@youni/db": "workspace:*",
+    "bullmq": "^5.49.0",
+    "ioredis": "^5.6.1",
+    "pino": "^9.6.0",
+    "playwright": "^1.52.0",
+    "zod": "^4.1.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3"
+  }
+}
