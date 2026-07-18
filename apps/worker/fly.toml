@@ -1,0 +1,29 @@
+# Fly.io worker 배포 설정 (Playwright 상시 구동).
+# 배포: cd apps/worker && fly launch --no-deploy (앱 생성) 후 fly deploy
+# 시크릿: fly secrets set KEY=VALUE (아래 .env.example의 값들)
+app = "youni-worker"
+primary_region = "nrt"  # 도쿄 (한국 사이트 지연 최소)
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "8080"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false   # 스케줄러 상시 구동 필요 — 절대 자동 중지 금지
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    method = "get"
+    path = "/healthz"
+    interval = "30s"
+    timeout = "5s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"   # Chromium 구동 최소치. 잦은 OOM이면 2gb로 상향
