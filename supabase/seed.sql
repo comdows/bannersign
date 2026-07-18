@@ -20,7 +20,15 @@ insert into municipalities (code, name, operator_type, operator_name, operator_c
     null,
     'https://www.osankoaa.or.kr',               -- TODO(확인 필요): 지정게시대 현황 페이지 존재 확인됨, 접수 플로우 검증 필요
     'osan', 'beta',
-    '{"autoSubmit": true, "onlinePayment": false, "captchaType": "unknown"}'
+    '{"autoSubmit": false, "onlinePayment": false, "captchaType": "unknown"}'
+  ),
+  (
+    'siheung', '시흥시', 'association',
+    null,
+    null,
+    'https://siheung.uriad.com',                -- uriad 템플릿, sub03 r_STARTDAY까지 화성과 동일 구조 확인 (2026-07-18)
+    'siheung', 'beta',
+    '{"autoSubmit": false, "onlinePayment": false, "captchaType": "none"}'
   )
 on conflict (code) do nothing;
 

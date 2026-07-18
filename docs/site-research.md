@@ -1,42 +1,62 @@
-# 지자체별 현수막 게시대 신청 사이트 조사
+# 지자체별 현수막 게시대 접수처 디렉토리
 
-최종 갱신: 2026-07-18. **사용자 제공 정보가 최우선** (개발 환경 프록시가 해당 사이트
-접속을 차단해 자동 검증 불가 — 실측은 실제 방문 기준으로 진행).
+최종 갱신: 2026-07-18. 출처: 사용자 제공 블로그 디렉토리(서울.경기 게시대 안내,
+blog.naver.com/s3833323)의 지자체별 포스트 30건 크롤 + 각 사이트 직접 확인.
 
-## 확정/제공된 접수처 (사용자 확인)
+## 템플릿 분류 (어댑터 전략)
 
-| 지자체 | 접수 사이트 | 운영(수탁) 기관 | 비고 |
-|---|---|---|---|
-| **화성시** | https://www.hsdr.or.kr | **두리하나화성장애인자립센터** (031-366-7922) | **실측 완료 (2026-07-18)**: EUC-KR, uriad 솔루션. 접수 매월 1일 00:00~5일 24:00(추첨), 게시대 197곳(600×70, 13,000원/7일), 로그인 폼 캡차 없음. 디자인 규정 PDF(guide_20250602.pdf) 확보 — 바탕 흰/아이보리만, 글자 지정 7색, 적색 금지 등. 남은 실측: 로그인 후 게시대 선택~시안 첨부 단계(실계정 dry-run 필요), 나의신청현황(결과) 파싱 |
-| **용인시** | https://banner.yjuc.or.kr | 양주도시공사 환경관리팀(현수막게시대) 표기 | 사용자 제공. 도메인(yjuc=양주도시공사)과 지자체가 달라 보이므로 방문 시 실제 관할 확인 권장 |
-| **서울 구로구** | https://guro.uriad.com/public/index.jsp | 미상 (uriad 솔루션) | 사용자 제공 |
-| 오산시 | https://www.osankoaa.or.kr | 한국옥외광고협회 오산시지부(추정) | 검색 확인(지정게시대 현황 페이지 존재), 접수 플로우 미검증 |
-| 수원시 | **미확인** | — | 이전 후보(swkoaa.or.kr)는 오류로 판명 — 재조사 필요 |
+| 템플릿 | 마커 | 어댑터 |
+|---|---|---|
+| **uriad(directory1)** | `directory1/map_view.jsp`, `fnBorder()/fnMapSmallShow()`, `sub03.jsp`의 `r_STARTDAY` hidden, `top_login.jsp` #id/#pw | `packages/adapters/src/uriad/factory.ts` — `createUriadAdapter()` 재사용 (약 20곳) |
+| newkoaa(PHP) | `/map/newkoaa_*/?map_id=`, `/skin_gyeonggi/` | 미구현 — 별도 어댑터 필요 |
+| 구청 직영/기타 | 예약시스템·자체 구축 | 지자체별 개별 어댑터 |
 
-## 접수처 디렉토리 참고 자료
+## uriad 템플릿 접수처
 
-- 지자체별 접수처를 버튼 링크로 정리한 블로그 (사용자 제공):
-  https://m.blog.naver.com/PostView.naver?blogId=s3833323&logNo=224329611475
-  → 신규 지자체 어댑터 추가 시 이 글에서 접수처 URL을 우선 확인할 것
+| 지자체 | 접수처 | 수탁 기관 | bizoff | 상태 |
+|---|---|---|---|---|
+| **화성시** | hsdr.or.kr | 두리하나화성장애인자립센터 (031-366-7922) | B40 | **실측 완료** — 접수 매월 1~5일 추첨, 게시대 197곳(600×70, 13,000원/7일), 디자인 규정 PDF 확보, 어댑터 beta(autoSubmit) |
+| 시흥시 | siheung.uriad.com | (확인 필요) | — | sub03 r_STARTDAY까지 동일 구조 확인 — 어댑터 등록(beta, autoSubmit=false) |
+| 오산시 | osankoaa.or.kr | 오산시광고협회 | B30 | uriad 템플릿이나 sub03에 r_STARTDAY 미확인(추첨 경로 상이 가능) — 어댑터 등록(autoSubmit=false) |
+| 서울 강서구 | gssi.uriad.com | 강서구시설관리공단 | — | 디렉토리 등록 |
+| 서울 구로구 | guro.uriad.com/public | 구로구시설관리공단 | — | 디렉토리 등록 |
+| 서울 동작구 | idongjak.uriad.com | 동작구시설관리공단 | — | 디렉토리 등록 |
+| 서울 금천구 | gfmc.uriad.com | 금천구시설관리공단 | I91 | 디렉토리 등록 |
+| 안산시 | ansan.uriad.com/public | — | — | sub03 경로 상이(404) — 경로 실측 필요 |
+| 군포시 | uriad.com/gunpo | — | B08 | 디렉토리 등록 |
+| 안양시 | aykoaa.or.kr | 안양시광고협회 | — | 디렉토리 등록 |
+| 용인시 | yikoaa.or.kr | — | B31 | http 접근 이슈(프록시 403) — https/경로 확인 필요 |
+| 평택시 | ptkoaa.co.kr | — | B36 | 〃 |
+| 파주시 | pjgoaa.or.kr | — | B35 | 디렉토리 등록 |
+| 김포시 | kmkoaa.or.kr | — | B05 | 디렉토리 등록 |
+| 의왕시 | uwkoaa.or.kr | — | B32 | 디렉토리 등록 |
+| 남양주시 | nyjkoaa.or.kr 외 | **권역별 3곳**: 남양주 옥외광고(B10) / 지체장애인협회 남양주시지회 nyjkappd(B90) / 특수임무수행자 경기북부동지회 hid01.com(B93) | — | 다중 수탁 — 게시대→수탁처 매핑 필요 |
+| 의정부시 | ujbgoaa.or.kr/public | — | — | 디렉토리 등록 |
+| (미확정) | gpgoaa.or.kr, ssmu.co.kr(B17), icaa.or.kr(B34), mountad.co.kr | 지자체 매핑 미확정 | — | 후속 확인 |
 
-## 솔루션 벤더 패턴 (어댑터 재사용 기회)
+## 기타 템플릿 접수처
 
-- **uriad.com**: `guro.uriad.com`(구로구), `gongdan.uriad.com`(성북구도시관리공단) —
-  멀티테넌트 게시대 접수 솔루션으로 보임. 같은 벤더면 어댑터 하나로 여러 지자체 커버 가능
-- **yjuc 계열 템플릿**: `banner.yjuc.or.kr`(sub02-01.jsp 게시대 추첨 신청)과
-  `osankoaa.or.kr`(sub02-02.jsp 지정게시대 현황)이 동일 템플릿으로 보임
-- **koaa 지부 도메인**: `{약어}koaa.or.kr` — 옥외광고협회 지부 운영 지역에서 관찰
-  (단, 수원 swkoaa는 오류였음 — 도메인 패턴만으로 단정하지 말 것)
+| 지자체 | 접수처 | 비고 |
+|---|---|---|
+| 수원시 | suwon.go.kr:22881 | 시 직영 시스템(passni) — 별도 어댑터 |
+| 서울 양천구 | yangcheon.go.kr 통합예약 | 구청 예약시스템 |
+| 서울 영등포구 | banner.y-sisul.or.kr | 영등포구 옥외광고시설물(PHP) |
+| 부천시 | bckoaa.com | newkoaa 템플릿 |
+| 하남시 | hnkoaa.co.kr | newkoaa 템플릿 |
+| 광주시(경기) | gjkoaa.co.kr | newkoaa 템플릿 |
+| 양주시 | banner.yjuc.or.kr | 양주도시공사 환경관리팀 |
+| (미확정) | gayaad.kr, koaagj.co.kr, yoaa.co.kr | 지자체 매핑 미확정 (고양/양평 추정) |
 
 ## 게시대 위치 데이터 소스
 
 - 공공데이터포털 전국현수막게시대시설표준데이터: https://www.data.go.kr/data/15129434/standard.do
 - 경기데이터드림 현수막지정게시대 현황: https://data.gg.go.kr
+- uriad 템플릿은 `sub02.jsp`(게시대현황) 크롤로 좌표·요금·면수까지 수집 가능 (화성 197곳 시드 완료)
 
-## 다음 단계
+## 확장 절차 (uriad 템플릿 기준)
 
-1. 화성 hsdr.or.kr 실측: 접수 메뉴 경로, 로그인 방식, 신청 폼 필드/셀렉터, 캡차 여부
-   → `packages/adapters/src/hwaseong/config.ts` 교체 + fixtures를 실제 HTML로 갱신
-2. 오산 osankoaa.or.kr 접수 플로우 확인 → osan 어댑터 구현
-3. uriad.com 솔루션 구조 파악 → 공통 어댑터 베이스 추출 검토 (구로 등 서울권 확장)
-4. 실창구 dry-run 통과 후 municipalities.status를 active로 전환
+1. `sub02.jsp`/`sub03.jsp` 존재·구조 확인 (healthCheck와 동일 체크)
+2. `createUriadAdapter({key, nameKo, baseUrl, paths})` 등록 + registry 추가 (autoSubmit=false)
+3. seed_directory.sql에서 해당 지자체 status → 'beta'
+4. 게시대 크롤 시드 생성, 규격 공고 확보(municipality_specs)
+5. 실계정 dry-run 리허설(제출 직전까지) 통과 → autoSubmit=true, status='active'
