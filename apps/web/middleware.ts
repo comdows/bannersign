@@ -7,10 +7,17 @@ type CookieToSet = { name: string; value: string; options?: CookieOptions };
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  // 환경변수 누락 시 미들웨어가 전체 사이트를 500내지 않도록 통과 (설정 오류 방어)
+  if (!url || !anon) return response;
+
+  const { pathname } = request.nextUrl;
+  const isPublic =
+    pathname === "/" || pathname.startsWith("/login") || pathname.startsWith("/auth");
+
+  try {
+    const supabase = createServerClient(url, anon, {
       cookies: {
         getAll: () => request.cookies.getAll(),
         setAll: (cookiesToSet: CookieToSet[]) => {
@@ -21,21 +28,27 @@ export async function middleware(request: NextRequest) {
           );
         },
       },
-    },
-  );
+    });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  const { pathname } = request.nextUrl;
-  const isPublic = pathname === "/" || pathname.startsWith("/login") || pathname.startsWith("/auth");
-  if (!user && !isPublic) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
+    if (!user && !isPublic) {
+      const redirect = request.nextUrl.clone();
+      redirect.pathname = "/login";
+      return NextResponse.redirect(redirect);
+    }
+    return response;
+  } catch {
+    // 인증 서버 일시 오류가 페이지 전체를 막지 않도록: 보호 경로면 로그인으로, 공개면 통과
+    if (!isPublic) {
+      const redirect = request.nextUrl.clone();
+      redirect.pathname = "/login";
+      return NextResponse.redirect(redirect);
+    }
+    return response;
   }
-  return response;
 }
 
 export const config = {
