@@ -44,6 +44,18 @@ cd apps/worker && cp .env.example .env && pnpm dev
 
 Supabase 마이그레이션: `supabase db push` (또는 SQL 에디터에서 `supabase/migrations/*.sql` 순서대로 실행), 이후 `supabase/seed.sql`.
 
+## 문서 (docs/)
+
+| 문서 | 역할 |
+|---|---|
+| [사업계획서](docs/business-plan.md) | **왜** — 문제·시장·수익모델·GTM·재무·리스크 |
+| [상용화 로드맵](docs/roadmap.md) | **언제 무엇을** — Phase 0~4, Exit 기준, 비용 |
+| [개발 기획서](docs/product-spec.md) | **어떻게** — 빌드 상태 기준선, `SPEC-*` 기능 스펙, 어댑터 런북, 우선순위 백로그 |
+| [배포 가이드](docs/deploy.md) | Phase 0 인프라 연결 절차 |
+| [지자체 디렉토리](docs/site-research.md) | 접수처 실측 데이터·템플릿 분류 |
+
+새 기능 개발은 [개발 기획서의 백로그](docs/product-spec.md#5-우선순위-백로그-지금--다음) 순서를 따른다.
+
 ## 운영 주체 (수탁 구조)
 
 현수막 게시대는 지자체가 직접 운영하지 않고 **수탁 기관에 위임**하는 경우가 대부분이다
