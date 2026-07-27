@@ -1,8 +1,23 @@
 import type { DesignFinding } from "@youni/core";
-import { createSupabaseServer } from "@/lib/supabase/server";
+import Link from "next/link";
+import { createSupabaseServer, currentTenantId } from "@/lib/supabase/server";
 import { DesignUploadForm, ValidateForm } from "./ui";
 
 export default async function DesignsPage() {
+  const tenantId = await currentTenantId();
+  if (!tenantId) {
+    return (
+      <>
+        <h1>시안 관리</h1>
+        <div className="card">
+          <p style={{ fontSize: 14 }}>
+            시안을 올리려면 먼저 <Link href="/settings">설정</Link>에서 워크스페이스를 만들어
+            주세요.
+          </p>
+        </div>
+      </>
+    );
+  }
   const supabase = await createSupabaseServer();
   const [{ data: designs }, { data: municipalities }] = await Promise.all([
     supabase
@@ -20,8 +35,21 @@ export default async function DesignsPage() {
 
       <div className="card">
         <h3>시안 업로드 (JPG/PNG)</h3>
+        <p style={{ fontSize: 13, color: "#555" }}>
+          업로드 후 지자체를 선택해 AI 규격 검증을 돌려보세요. 사이즈·필수 문구·금지 콘텐츠를
+          미리 점검하면 당첨 후 반려를 예방할 수 있습니다.
+        </p>
         <DesignUploadForm />
       </div>
+
+      {(designs ?? []).length === 0 && (
+        <div className="card">
+          <p style={{ fontSize: 14, color: "#555" }}>
+            아직 시안이 없습니다. 위에서 현수막 시안 파일을 올리면 자동 신청에 사용할 수
+            있습니다.
+          </p>
+        </div>
+      )}
 
       {(designs ?? []).map((d) => (
         <div className="card" key={d.id}>

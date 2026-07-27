@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { getOnboardingState } from "@/lib/onboarding";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { OnboardingChecklist } from "../checklist";
 
 const STATUS_KO: Record<string, string> = {
   pending: "대기",
@@ -15,7 +17,8 @@ const STATUS_KO: Record<string, string> = {
 export default async function DashboardPage() {
   const supabase = await createSupabaseServer();
 
-  const [{ data: jobs }, { data: windows }] = await Promise.all([
+  const [onboarding, { data: jobs }, { data: windows }] = await Promise.all([
+    getOnboardingState(),
     supabase
       .from("submission_jobs")
       .select(
@@ -34,6 +37,8 @@ export default async function DashboardPage() {
   return (
     <>
       <h1>신청 현황</h1>
+
+      <OnboardingChecklist state={onboarding} />
 
       <div className="card">
         <h3>다가오는 신청 기간</h3>
