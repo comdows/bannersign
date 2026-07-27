@@ -87,6 +87,7 @@ fly secrets set --app youni-worker \
   WORKER_SHARED_SECRET="<공유 시크릿>" \
   CREDENTIALS_ENC_KEY="<web과 동일 hex>" \
   ANTHROPIC_API_KEY="<Anthropic 키>" \
+  RESEND_API_KEY="<resend.com API 키 — 선택, 없으면 이메일 알림은 로그만>" \
   SUBMIT_DRY_RUN_DEFAULT="true"    # ★ 처음엔 반드시 true (실제 제출 방지)
 
 # 저장소 루트에서 배포 (컨텍스트=루트, Dockerfile은 apps/worker)

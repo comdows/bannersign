@@ -21,8 +21,8 @@
 | 스케줄러 (마스터 틱: 창구 생성→상태 전이→D-3 잡 생성→오픈 큐잉→D-1 점검→결과 큐잉) | ✅ | `apps/worker/src/scheduler.ts` |
 | 자동 제출 프로세서 (dry-run·감사증적·재시도 포함) | ✅ | `apps/worker/src/processors/submit.ts` |
 | 크롤 프로세서 (게시대/일정) | ✅ | `apps/worker/src/processors/crawl.ts` |
-| 결과 수집 프로세서 | 🟡 | `apps/worker/src/processors/results.ts` — 구현됐으나 uriad 계열은 로그인 후 마이페이지 파싱 필요(현재 미인증 호출이라 0건). → SPEC-RESULT-01 |
-| 알림 프로세서 | ⬜ 스텁 | `apps/worker/src/processors/notify.ts` — 로그만 남김. → SPEC-NOTIFY-01 |
+| 결과 수집 프로세서 | ✅ 코드 완성 | `apps/worker/src/processors/results.ts` — uriad 계열은 credential별 로그인 후 마이페이지 파싱(exact/1:1 fuzzy 매칭). 실측 검증은 8월 발표 때. → SPEC-RESULT-01 |
+| 알림 프로세서 (이메일 Resend) | ✅ 코드 완성 | `apps/worker/src/processors/notify.ts` — RESEND_API_KEY 설정 시 발송, 미설정 시 스텁 폴백. 실수신 확인 남음. → SPEC-NOTIFY-01 |
 | 캡차 수동 릴레이 (worker↔web) | ✅ | `apps/worker/src/captcha.ts`, `apps/web/app/(dashboard)/captcha/` |
 | 화성 어댑터 (로그인→규약동의→게시대선택→시안첨부→제출, 실측 완료) | ✅ | `packages/adapters/src/hwaseong/`, `src/uriad/factory.ts` |
 | 오산·시흥 어댑터 (uriad 팩토리, beta·autoSubmit=false) | 🟡 | `packages/adapters/src/{osan,siheung}/` — 실측 dry-run 미통과. → SPEC-ADAPT-02 |
@@ -85,20 +85,22 @@
 
 ### RESULT — 결과 수집·피드백
 
-**SPEC-RESULT-01 uriad 인증 결과 수집** — Phase 1 · 🟡 (핵심 미완)
-- 목적: uriad 계열은 결과가 개인 마이페이지에 있으므로, 창구별 submitted 잡을 사용자 credential로 로그인해 `top_mypage.jsp` 파싱하도록 잡 분리.
-- AC: 화성 추첨 발표 후 본인 계정의 선정/탈락이 `results`에 저장되고 잡과 매칭됨.
-- 파일: `apps/worker/src/processors/results.ts`(파일 상단 TODO), `packages/adapters/src/uriad/parsers.ts`의 `parseMypageResults`.
+**SPEC-RESULT-01 uriad 인증 결과 수집** — Phase 1 · 🟡 코드 완성 (실측 검증 전)
+- 목적: uriad 계열은 결과가 개인 마이페이지에 있으므로, 창구별 submitted 잡을 credential별로 묶어 로그인 후 `top_mypage.jsp` 파싱.
+- 구현: `AdapterMeta.resultsRequireLogin` 분기, 접수번호 exact + 잡1·행1 fuzzy 매칭(fuzzy는 `reviewed=false` 관리자 확인 큐), 사용자별 실패 격리, `login_failed`시 credential 무효 마킹.
+- 남은 AC: 화성 8월 추첨 발표 후 본인 계정의 선정/탈락이 `results`에 저장·매칭되는지 실측.
+- 파일: `apps/worker/src/processors/results.ts`, `packages/adapters/src/uriad/parsers.ts`의 `parseMypageResults`.
 
 **SPEC-RESULT-02 매칭·확인 큐** — Phase 3 · ⬜
 - AC: 접수번호 exact 자동 매칭, fuzzy는 관리자 확인 큐 경유, 미매칭 행 보관(경쟁률 데이터 원료).
 
 ### NOTIFY — 알림
 
-**SPEC-NOTIFY-01 이메일 실연동 (Resend)** — Phase 1 · ⬜ 스텁
+**SPEC-NOTIFY-01 이메일 실연동 (Resend)** — Phase 1 · 🟡 코드 완성 (실수신 확인 전)
 - 목적: 창구 오픈 예정/제출 성공·실패/캡차 요청/결과를 이메일로.
-- AC: `notify.ts` 스텁 교체, 멱등(unique 제약) 유지, 본인 메일 수신 확인.
-- 파일: `apps/worker/src/processors/notify.ts`.
+- 구현: Resend REST 발송, 수신자 해석(user_id 지정 또는 테넌트 멤버 전체), 유형별 한글 템플릿 8종, 5xx/429·네트워크 오류는 pending 유지 재시도·4xx는 failed. `RESEND_API_KEY` 미설정이면 스텁 폴백(부팅 안 막음).
+- 남은 AC: resend.com 가입 → API 키 발급 → Fly 시크릿 `RESEND_API_KEY` 주입 → 본인 메일 수신 확인. (자체 도메인 발신은 Phase 2에 도메인 인증 후)
+- 파일: `apps/worker/src/processors/notify.ts`, `apps/worker/src/env.ts`.
 
 **SPEC-NOTIFY-02 카카오 알림톡** — Phase 3 · ⬜
 - 솔라피 연동. 템플릿 사전 승인 2~4주 → Phase 2 말에 신청 시작.
@@ -166,8 +168,8 @@
 |---|---|---|---|---|
 | 1 | Fly 워커 배포 마무리 | SPEC-INFRA-01 | 0 | 시크릿 주입 후 `fly deploy` — 진행 중 |
 | 2 | 8월 창구 dry-run 리허설 | SPEC-SUBMIT-01 | 0 | **8/1~8/5 고정 일정** — 놓치면 9월로 이월 |
-| 3 | 이메일 알림 실연동 | SPEC-NOTIFY-01 | 1 | 스텁 교체(Resend) — dry-run 결과 통지에도 필요 |
-| 4 | uriad 인증 결과 수집 | SPEC-RESULT-01 | 1 | 8월 추첨 발표일 전 완성 목표 |
+| 3 | 이메일 알림 실연동 | SPEC-NOTIFY-01 | 1 | ✅ 코드 완료 — RESEND_API_KEY 주입+실수신 확인만 남음 |
+| 4 | uriad 인증 결과 수집 | SPEC-RESULT-01 | 1 | ✅ 코드 완료 — 8월 발표 때 실측 검증 |
 | 5 | 실제 제출 1건(본인) | SPEC-SUBMIT-02 | 1 | dry-run 검수 후 9월 창구 |
 | 6 | 시안 검증 실전 튜닝 | SPEC-AI-01 | 1 | 실제 시안으로 |
 | 7 | Sentry·운영 루틴 | SPEC-INFRA-02 | 1 | |

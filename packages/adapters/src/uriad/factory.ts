@@ -104,6 +104,7 @@ export function createUriadAdapter(cfg: UriadSiteConfig): MunicipalityAdapter {
       captchaType: cfg.captchaType ?? "none",
       autoSubmit: cfg.autoSubmit,
       onlinePayment: false,
+      resultsRequireLogin: true, // 결과는 로그인 후 top_mypage.jsp에만 노출
     },
 
     async fetchBoards(ctx: CrawlContext): Promise<BoardSiteInfo[]> {
