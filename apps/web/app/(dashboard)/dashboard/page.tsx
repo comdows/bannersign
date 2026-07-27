@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createSupabaseServer } from "@/lib/supabase/server";
 
 const STATUS_KO: Record<string, string> = {
@@ -69,6 +70,7 @@ export default async function DashboardPage() {
               <th>접수번호</th>
               <th>제출 시각</th>
               <th>비고</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -82,11 +84,14 @@ export default async function DashboardPage() {
                 <td style={{ maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis" }}>
                   {j.error_detail ?? ""}
                 </td>
+                <td>
+                  <Link href={`/jobs/${j.id}`}>타임라인</Link>
+                </td>
               </tr>
             ))}
             {(jobs ?? []).length === 0 && (
               <tr>
-                <td colSpan={4}>아직 신청 잡이 없습니다. 자동 신청을 등록해 보세요.</td>
+                <td colSpan={5}>아직 신청 잡이 없습니다. 자동 신청을 등록해 보세요.</td>
               </tr>
             )}
           </tbody>
