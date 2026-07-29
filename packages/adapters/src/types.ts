@@ -17,6 +17,11 @@ export interface AdapterMeta {
   captchaType: CaptchaType;
   autoSubmit: boolean;
   onlinePayment: boolean;
+  /**
+   * 결과가 공개 페이지가 아니라 로그인 후 개인 마이페이지에만 있는 사이트(uriad 계열).
+   * true면 worker가 창구의 submitted 잡별 credential로 login() 후 fetchResults를 호출한다.
+   */
+  resultsRequireLogin?: boolean;
 }
 
 /** 매 단계 스크린샷/HTML 스냅샷을 남기는 감사 훅 — 어댑터는 의미 단계마다 호출해야 한다(계약). */

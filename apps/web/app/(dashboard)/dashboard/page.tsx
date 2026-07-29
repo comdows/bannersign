@@ -1,4 +1,7 @@
+import Link from "next/link";
+import { getOnboardingState } from "@/lib/onboarding";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { OnboardingChecklist } from "../checklist";
 
 const STATUS_KO: Record<string, string> = {
   pending: "대기",
@@ -14,7 +17,8 @@ const STATUS_KO: Record<string, string> = {
 export default async function DashboardPage() {
   const supabase = await createSupabaseServer();
 
-  const [{ data: jobs }, { data: windows }] = await Promise.all([
+  const [onboarding, { data: jobs }, { data: windows }] = await Promise.all([
+    getOnboardingState(),
     supabase
       .from("submission_jobs")
       .select(
@@ -33,6 +37,8 @@ export default async function DashboardPage() {
   return (
     <>
       <h1>신청 현황</h1>
+
+      <OnboardingChecklist state={onboarding} />
 
       <div className="card">
         <h3>다가오는 신청 기간</h3>
@@ -69,6 +75,7 @@ export default async function DashboardPage() {
               <th>접수번호</th>
               <th>제출 시각</th>
               <th>비고</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -82,11 +89,14 @@ export default async function DashboardPage() {
                 <td style={{ maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis" }}>
                   {j.error_detail ?? ""}
                 </td>
+                <td>
+                  <Link href={`/jobs/${j.id}`}>타임라인</Link>
+                </td>
               </tr>
             ))}
             {(jobs ?? []).length === 0 && (
               <tr>
-                <td colSpan={4}>아직 신청 잡이 없습니다. 자동 신청을 등록해 보세요.</td>
+                <td colSpan={5}>아직 신청 잡이 없습니다. 자동 신청을 등록해 보세요.</td>
               </tr>
             )}
           </tbody>
