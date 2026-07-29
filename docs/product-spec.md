@@ -128,6 +128,32 @@
 **SPEC-WEB-04 랜딩·SEO** — Phase 3 · ⬜
 - AC: "○○시 현수막 게시대 신청" 검색 유입용 지자체별 공개 페이지(일정·수수료·규격 무료 공개→가입 유도).
 
+### MAP — 게시대 위치 지도
+
+**SPEC-MAP-01 크롤 upsert lat/lng 유실 수정** — Phase 1 · ✅
+- uriad 파서가 추출한 좌표를 worker upsert가 버리던 버그. 좌표 없는 행은 기존 값 보존(컬럼 생략).
+- 파일: `apps/worker/src/processors/crawl.ts`.
+
+**SPEC-MAP-02 우선순위=선택순서 수정** — Phase 1 · ✅
+- "선택 순서=우선순위" 안내와 달리 DOM 순서로 저장되던 버그 → `selectedIds` 상태 + ↑/↓ 재정렬. 저장 shape `[{boardSiteId, priority}]` 불변.
+- 파일: `apps/web/app/(dashboard)/requests/ui.tsx`.
+
+**SPEC-MAP-03/04 Kakao SDK 로더 + BoardMap 컴포넌트** — Phase 1 · ✅ (키 주입 대기)
+- `NEXT_PUBLIC_KAKAO_MAP_APP_KEY`(turbo env 선언 포함), autoload=false 로더, 키 미설정/로드 실패 시 목록 폴백. 마커 클릭 선택, 우선순위 뱃지(CustomOverlay), 근접(소수4자리≈11m) 그룹 뱃지+하단 패널 개별 선택, bounds 자동 fit.
+- 남은 AC: **사용자 액션 — developers.kakao.com JS 키 발급 + 도메인 등록(localhost:3000, youni-web.vercel.app) + Vercel env 주입.**
+- 파일: `apps/web/lib/kakao-loader.ts`, `app/(dashboard)/requests/board-map.tsx`.
+
+**SPEC-MAP-05 /requests 지도 picker 통합** — Phase 1 · ✅
+- 지도+동기화 우선순위 목록(재정렬·삭제), 전체 목록 폴백(좌표 없는 게시대 포함), max_entries=1 안내 문구, 지자체 변경 시 선택 초기화.
+- 파일: `app/(dashboard)/requests/{page,ui}.tsx`.
+
+**SPEC-MAP-06 /boards 지역 게시대 지도 페이지** — Phase 2 · ✅ 선행 구현
+- 지자체 선택 → 읽기 전용 지도 + 읍/면/동 필터 + 표(주소·면수·규격·요금), 네비 "게시대 지도".
+- 파일: `app/(dashboard)/boards/{page,ui}.tsx`.
+
+**SPEC-MAP-07 마커 클러스터링** — 조건부 후순위 · ⬜
+- 게시대 >500 시 Kakao MarkerClusterer 도입(현재 197개는 무보정 렌더로 충분 — 결정만 기록).
+
 ### BIZ — 과금·사업 기반
 
 **SPEC-BIZ-01 약관·개인정보·계정위임 동의** — Phase 2 · ⬜
@@ -174,7 +200,8 @@
 | 4 | uriad 인증 결과 수집 | SPEC-RESULT-01 | 1 | ✅ 코드 완료 — 8월 발표 때 실측 검증 |
 | 5 | 실제 제출 1건(본인) | SPEC-SUBMIT-02 | 1 | dry-run 검수 후 9월 창구 |
 | 6 | 시안 검증 실전 튜닝 | SPEC-AI-01 | 1 | 실제 시안으로 |
-| 7 | Sentry·운영 루틴 | SPEC-INFRA-02 | 1 | |
+| 7 | 게시대 위치 지도 | SPEC-MAP-01~06 | 1~2 | ✅ 코드 완료 — 카카오 JS 키 발급·도메인 등록만 남음 |
+| 7.5 | Sentry·운영 루틴 | SPEC-INFRA-02 | 1 | |
 | 8 | 온보딩 다듬기 + 제출 타임라인 | SPEC-WEB-01/02 | 2 | WEB-02 ✅ 완료(dry-run 검수 화면 선행 구축) — WEB-01 남음 |
 | 9 | 약관·계정위임 동의 + 수동 과금 | SPEC-BIZ-01/02 | 2 | 첫 유료 전환 |
 | 10 | 오산 어댑터 활성화 | SPEC-ADAPT-02 | 2 | "지자체 추가 1주" 프로세스 검증 |
