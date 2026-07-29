@@ -20,7 +20,11 @@ export default async function RequestsPage() {
     supabase.from("advertiser_profiles").select("id, business_name"),
     supabase.from("site_credentials").select("id, municipality_id, username, status"),
     supabase.from("designs").select("id, file_name"),
-    supabase.from("board_sites").select("id, municipality_id, name").eq("is_active", true),
+    supabase
+      .from("board_sites")
+      .select("id, municipality_id, name, lat, lng, address, fee")
+      .eq("is_active", true)
+      .order("name"),
   ]);
 
   const missing: Array<{ label: string; href: string }> = [];
@@ -56,6 +60,7 @@ export default async function RequestsPage() {
             credentials={credentials ?? []}
             designs={designs ?? []}
             boards={boards ?? []}
+            kakaoAppKey={process.env.NEXT_PUBLIC_KAKAO_MAP_APP_KEY}
           />
         </div>
       )}

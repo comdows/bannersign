@@ -13,6 +13,7 @@
       "env": [
         "NEXT_PUBLIC_SUPABASE_URL",
         "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+        "NEXT_PUBLIC_KAKAO_MAP_APP_KEY",
         "CREDENTIALS_ENC_KEY",
         "ANTHROPIC_API_KEY",
         "WORKER_URL",

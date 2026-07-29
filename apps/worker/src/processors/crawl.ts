@@ -60,6 +60,8 @@ export async function processCrawlJob(bullJob: Job): Promise<void> {
                 raw: b.raw ?? null,
                 is_active: true,
                 last_seen_at: new Date().toISOString(),
+                // 좌표는 파서가 찾은 경우에만 — 컬럼 자체를 빼서 기존 값을 null로 덮지 않는다
+                ...(b.lat != null && b.lng != null ? { lat: b.lat, lng: b.lng } : {}),
               },
               { onConflict: "municipality_id,external_id" },
             );

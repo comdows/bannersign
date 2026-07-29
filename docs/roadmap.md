@@ -76,6 +76,7 @@ Vercel web(youni-web.vercel.app) 가동, Upstash Redis 생성. **남은 것: Fly
 **예상 비용: 월 5~10만원** (Supabase Pro $25 전환 시점, worker VPS, Claude API 종량)
 
 **개발 산출물**: `SPEC-WEB-01`(온보딩) · `SPEC-WEB-02`(제출 타임라인) ·
+`SPEC-MAP-01~06`(게시대 위치 지도·지도 기반 신청) ·
 `SPEC-BIZ-01`(약관·계정위임 동의) · `SPEC-BIZ-02`(수동 과금) · `SPEC-ADAPT-02`(오산 활성화)
 
 **Exit**: **유료 결제 1건 발생** + 베타 고객의 신청이 본인 개입 없이 1창구 사이클 완료.
