@@ -1,7 +1,5 @@
 "use client";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { useEffect, useMemo, useRef, useState } from "react";
 import { loadKakaoMaps } from "@/lib/kakao-loader";
 
@@ -88,8 +86,7 @@ export function BoardMap({ boards, selectedIds, onToggle, appKey, height = 380 }
       cancelled = true;
       mapRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appKey, boards, groups]);
+  }, [appKey, boards, groups, onToggle]);
 
   // 선택 변경 → 우선순위 뱃지 오버레이 갱신
   useEffect(() => {

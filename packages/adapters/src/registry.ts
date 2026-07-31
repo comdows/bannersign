@@ -15,3 +15,8 @@ export function getAdapter(key: string): MunicipalityAdapter {
   if (!adapter) throw new Error(`no adapter registered for key: ${key}`);
   return adapter;
 }
+
+/** 등록된 어댑터가 있는지 (스케줄러가 크롤 대상 지자체를 거르는 용도) */
+export function hasAdapter(key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(adapterRegistry, key);
+}

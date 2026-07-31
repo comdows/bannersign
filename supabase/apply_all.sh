@@ -14,6 +14,10 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 
 FILES=(
   "migrations/0001_init.sql"   # 스키마 + RLS + Storage 버킷/정책 + create_tenant_with_owner RPC
+  "migrations/0002_tenant_reference_integrity.sql"  # 테넌트·지자체 참조 무결성(복합 FK/트리거/보안 RPC)
+  "migrations/0003_request_readiness.sql"           # 자동 신청 준비도 게이트(트리거/RPC/once 만료)
+  "migrations/0004_window_schedule_identity.sql"    # 창구 논리 식별자 unique(muni, target_period_start)
+  "migrations/0005_credential_precheck.sql"         # D-1 계정 사전 점검 기록 unique(window, credential)
   "seed.sql"                   # 화성/오산/시흥 municipalities + specs
   "seed_boards_hwaseong.sql"   # 화성 게시대 197곳
   "seed_directory.sql"         # 어댑터 미구현 지자체 디렉토리(disabled)

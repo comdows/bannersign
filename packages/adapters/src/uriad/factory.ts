@@ -16,7 +16,7 @@ import {
   parseBoardList,
   parseLotteryWindowFields,
   parseMypageResults,
-  windowFromLotteryFields,
+  parseUriadSchedule,
 } from "./parsers.js";
 
 /**
@@ -121,10 +121,8 @@ export function createUriadAdapter(cfg: UriadSiteConfig): MunicipalityAdapter {
     async fetchSchedule(ctx: CrawlContext): Promise<ApplicationWindowInfo[]> {
       await ctx.page.goto(url(paths.applyLottery), { waitUntil: "domcontentloaded" });
       await ctx.audit.step("추첨신청 페이지 (기간 필드)");
-      const fields = parseLotteryWindowFields(await ctx.page.content());
-      if (!fields) return [];
-      const w = windowFromLotteryFields(fields);
-      return w ? [w] : [];
+      // 필드 부재/파싱 실패는 selector_missing 로 throw(0건과 구분).
+      return parseUriadSchedule(await ctx.page.content());
     },
 
     async fetchSpec(ctx: CrawlContext): Promise<SpecDraft> {

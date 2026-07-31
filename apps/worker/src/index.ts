@@ -1,6 +1,7 @@
 import { logger } from "./logger.js";
-import { processCrawlJob, processPrecheckJob } from "./processors/crawl.js";
+import { processCrawlJob } from "./processors/crawl.js";
 import { processNotifyBatch } from "./processors/notify.js";
+import { processPrecheckJob } from "./processors/precheck.js";
 import { processResultsJob } from "./processors/results.js";
 import { processSubmitJob } from "./processors/submit.js";
 import { createWorker, CRAWL_CONCURRENCY, SUBMIT_CONCURRENCY, getQueue } from "./queues.js";

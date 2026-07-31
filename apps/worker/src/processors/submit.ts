@@ -8,7 +8,13 @@ import {
   type SubmissionInput,
   type SubmitContext,
 } from "@youni/adapters";
-import { decryptSecret, loadEncKey, type SubmissionErrorCode } from "@youni/core";
+import {
+  canStartSubmission,
+  checkJobContextIntegrity,
+  decryptSecret,
+  loadEncKey,
+  type SubmissionErrorCode,
+} from "@youni/core";
 import type {
   AdvertiserProfileRow,
   ApplicationRequestRow,
@@ -42,7 +48,14 @@ export async function processSubmitJob(bullJob: Job): Promise<void> {
 
   const job = await loadJob(jobId);
   if (!job) return;
-  if (["submitted", "cancelled", "failed"].includes(job.status)) return;
+  // 저장된 상태가 pending/queued 가 아니면 아무 것도 하지 않는다 (S04).
+  // 창구 오픈까지 대기하던 delayed BullMQ 잡은 D-1 사전 점검보다 늦게 도착한다.
+  // 그 사이 사전 점검이 needs_manual 로 돌린 잡(계정 오류/사이트 장애)이나 운영자가
+  // cancelled 로 바꾼 잡이 자동 제출되는 경로를 여기서 끊는다.
+  if (!canStartSubmission(job.status)) {
+    logger.info({ jobId, status: job.status }, "제출 건너뜀 — 자동 제출 가능 상태가 아님");
+    return;
+  }
 
   const ctx = await loadJobContext(job);
   if ("skip" in ctx) {
@@ -201,7 +214,7 @@ interface JobContext {
   profile: AdvertiserProfileRow;
   credential: SiteCredentialRow;
   design: DesignRow;
-  window: { target_period_start: string; target_period_end: string };
+  window: { id: string; municipality_id: string; target_period_start: string; target_period_end: string };
   boardPrefs: SubmissionInput["boardPreferences"];
 }
 
@@ -217,10 +230,12 @@ async function loadJobContext(
     single<AdvertiserProfileRow>("advertiser_profiles", req.profile_id),
     single<SiteCredentialRow>("site_credentials", req.credential_id),
     single<DesignRow>("designs", req.design_id),
-    single<{ target_period_start: string; target_period_end: string }>(
-      "application_windows",
-      job.window_id,
-    ),
+    single<{
+      id: string;
+      municipality_id: string;
+      target_period_start: string;
+      target_period_end: string;
+    }>("application_windows", job.window_id),
   ]);
   if (!muni || !profile || !credential || !design || !window_) {
     return { skip: true, code: "unknown", detail: "job context incomplete" };
@@ -229,9 +244,39 @@ async function loadJobContext(
   const boardIds = req.board_preferences.map((b) => b.boardSiteId);
   const { data: boards } = await db()
     .from("board_sites")
-    .select("id, external_id, name")
+    .select("id, external_id, name, municipality_id")
     .in("id", boardIds.length > 0 ? boardIds : ["00000000-0000-0000-0000-000000000000"]);
-  const boardMap = new Map((boards as Pick<BoardSiteRow, "id" | "external_id" | "name">[] | null)?.map((b) => [b.id, b]) ?? []);
+  const boardRows =
+    (boards as Pick<BoardSiteRow, "id" | "external_id" | "name" | "municipality_id">[] | null) ?? [];
+  const boardMap = new Map(boardRows.map((b) => [b.id, b]));
+
+  // ── 테넌트·지자체 참조 무결성 재검증 (외부 사이트 접속 전 마지막 방어선) ──
+  // DB 계층 제약이 1차 방어선이지만, 오염 데이터가 남아 있으면 Playwright/
+  // 브라우저를 띄우기 전에 여기서 needs_manual 로 끝낸다.
+  const integrity = checkJobContextIntegrity({
+    job: { tenant_id: job.tenant_id, request_id: job.request_id, window_id: job.window_id },
+    request: {
+      id: req.id,
+      tenant_id: req.tenant_id,
+      municipality_id: req.municipality_id,
+      profile_id: req.profile_id,
+      design_id: req.design_id,
+      credential_id: req.credential_id,
+    },
+    profile: { id: profile.id, tenant_id: profile.tenant_id },
+    design: { id: design.id, tenant_id: design.tenant_id },
+    credential: {
+      id: credential.id,
+      tenant_id: credential.tenant_id,
+      municipality_id: credential.municipality_id,
+    },
+    window: { id: window_.id, municipality_id: window_.municipality_id },
+    boardPrefIds: boardIds,
+    boards: boardRows.map((b) => ({ id: b.id, municipality_id: b.municipality_id })),
+  });
+  if (!integrity.ok) {
+    return { skip: true, code: "validation_rejected", detail: integrity.detail };
+  }
 
   return {
     municipality: muni,

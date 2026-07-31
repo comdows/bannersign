@@ -105,6 +105,26 @@ export interface SiteCredentialRow {
   created_at: string;
 }
 
+/**
+ * D-1 사전 점검 기록 (migration 0005) — (window_id, credential_id) 당 한 행.
+ * 중복/재시도 precheck 잡이 같은 계정에 반복 로그인하지 못하게 하는 durable 근거.
+ * 비밀번호/세션/어댑터 원문 메시지는 저장하지 않는다(outcome_detail 은 고정 문구).
+ */
+export interface CredentialPrecheckRow {
+  id: string;
+  window_id: string;
+  credential_id: string;
+  tenant_id: string;
+  municipality_id: string;
+  status: "running" | "ok" | "invalid" | "locked" | "error";
+  outcome_code: string | null;
+  outcome_detail: string | null;
+  attempts: number;
+  last_attempt_at: string;
+  checked_at: string | null;
+  created_at: string;
+}
+
 export interface DesignRow {
   id: string;
   tenant_id: string;
