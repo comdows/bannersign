@@ -51,6 +51,8 @@ Supabase 마이그레이션: `supabase db push` (또는 SQL 에디터에서 `sup
 | [사업계획서](docs/business-plan.md) | **왜** — 문제·시장·수익모델·GTM·재무·리스크 |
 | [상용화 로드맵](docs/roadmap.md) | **언제 무엇을** — Phase 0~4, Exit 기준, 비용 |
 | [개발 기획서](docs/product-spec.md) | **어떻게** — 빌드 상태 기준선, `SPEC-*` 기능 스펙, 어댑터 런북, 우선순위 백로그 |
+| [플랫폼 기획서](docs/platform-plan.md) | **무엇을 왜** — 고객, 제품 범위, 사용자 흐름, 운영·보안 원칙 |
+| [세부 개발 계획서](docs/development-plan.md) | **어떤 순서로** — 개발 슬라이스, 의존성, 검증 기준, 남은 게이트 |
 | [배포 가이드](docs/deploy.md) | Phase 0 인프라 연결 절차 |
 | [지자체 디렉토리](docs/site-research.md) | 접수처 실측 데이터·템플릿 분류 |
 

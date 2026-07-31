@@ -1,5 +1,6 @@
 import type { ApplicationWindowInfo, BoardSiteInfo } from "@youni/core";
 import { parse } from "node-html-parser";
+import { AdapterError } from "../types.js";
 
 /**
  * 화성 hsdr.or.kr 순수 HTML 파서 — 실HTML 픽스처로 CI 회귀 테스트.
@@ -163,4 +164,35 @@ export function windowFromLotteryFields(f: LotteryWindowFields): ApplicationWind
     targetPeriodEnd: `${targetYear}-${pad(targetMonth)}-${pad(targetLastDay)}T23:59:00${KST}`,
     selectionMethod: "lottery",
   };
+}
+
+/**
+ * sub03.jsp HTML → 접수 창구 목록.
+ *
+ * "0건(현재 공지된 일정 없음)"과 "파서/사이트 변경 실패"를 반드시 구분한다:
+ *   - 예상 hidden 필드(r_STARTDAY/r_ENDDAY)가 없거나 게시 대상월(src_month)이
+ *     비정상이라 창구를 만들 수 없으면 AdapterError(selector_missing) 를 던진다.
+ *     (화성의 필드 부재를 조용히 [] 로 삼키지 않는다.)
+ *   - 유효한 필드로 창구를 만들면 [window] 을 반환한다.
+ * (uriad 계열은 접수 페이지에 항상 기간 필드가 있어 정상적으로 [] 를 돌려줄 상황은
+ *  없다. "명시적 0건"이 필요한 다른 어댑터는 이 함수를 쓰지 말고 직접 [] 를 반환한다.)
+ */
+export function parseUriadSchedule(html: string): ApplicationWindowInfo[] {
+  const fields = parseLotteryWindowFields(html);
+  if (!fields) {
+    throw new AdapterError(
+      "selector_missing",
+      "추첨신청 기간 필드(r_STARTDAY/r_ENDDAY) 부재 — 사이트 구조 변경/경로 확인 필요",
+      false,
+    );
+  }
+  const w = windowFromLotteryFields(fields);
+  if (!w) {
+    throw new AdapterError(
+      "selector_missing",
+      `게시 대상월(src_month) 파싱 실패: '${fields.targetMonth}' — 사이트 구조 변경 의심`,
+      false,
+    );
+  }
+  return [w];
 }

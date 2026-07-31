@@ -37,9 +37,13 @@ Anthropic API 키는 console.anthropic.com에서 발급 (ANTHROPIC_API_KEY).
      (연결 문자열: Settings → Database → Connection string → URI)
    - **없으면**: SQL 에디터에 아래 순서로 파일 내용을 붙여넣어 실행
      1. `supabase/migrations/0001_init.sql`
-     2. `supabase/seed.sql`
-     3. `supabase/seed_boards_hwaseong.sql`
-     4. `supabase/seed_directory.sql`
+     2. `supabase/migrations/0002_tenant_reference_integrity.sql`
+     3. `supabase/migrations/0003_request_readiness.sql`
+     4. `supabase/migrations/0004_window_schedule_identity.sql`
+     5. `supabase/migrations/0005_credential_precheck.sql`
+     6. `supabase/seed.sql`
+     7. `supabase/seed_boards_hwaseong.sql`
+     8. `supabase/seed_directory.sql`
 4. Storage 확인: 마이그레이션이 `designs`/`audit`/`captcha` private 버킷을 만든다.
    없으면 Storage에서 private 버킷 3개 수동 생성.
 5. Auth: Authentication → Providers → Email 활성화(매직링크). Site URL과
