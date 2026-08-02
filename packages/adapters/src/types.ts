@@ -24,11 +24,26 @@ export interface AdapterMeta {
   resultsRequireLogin?: boolean;
 }
 
+export interface AuditEvidence {
+  /** 기계적으로 검증할 수 있는 단계 식별자 */
+  step: string;
+  /** 쿼리 문자열과 fragment를 제거한 캡처 당시 URL */
+  url: string;
+  capturedAt: string;
+  /** 저장 실패 시 null. 캡처 성공 여부를 단계 기록과 구분한다. */
+  screenshotPath: string | null;
+  /** HTML 저장은 선택 증적이며 저장 실패 시 null이다. */
+  htmlPath: string | null;
+}
+
 /** 매 단계 스크린샷/HTML 스냅샷을 남기는 감사 훅 — 어댑터는 의미 단계마다 호출해야 한다(계약). */
 export interface AuditTrail {
-  step(name: string): Promise<void>;
+  /** evidenceStep을 생략하면 사람이 읽는 name을 증적 식별자로도 사용한다. */
+  step(name: string, evidenceStep?: string): Promise<void>;
   /** 지금까지 기록된 단계 이름들 */
   readonly steps: string[];
+  /** 지금까지 캡처한 구조화된 증적. 저장 실패 항목도 nullable path로 남는다. */
+  readonly evidence: AuditEvidence[];
 }
 
 export interface CrawlContext {

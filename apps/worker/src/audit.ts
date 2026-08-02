@@ -24,7 +24,7 @@ export function storageAuditSink(
     });
     if (error) {
       logger.warn({ error, path }, "audit upload failed");
-      return path;
+      throw new Error(`audit upload failed: ${path}`);
     }
     onSaved(path);
     return path;

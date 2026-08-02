@@ -1,6 +1,6 @@
 # 유니(youni) 세부 개발 계획서
 
-> 문서 버전: v1.1 · 기준일: 2026-08-01 · 실행 단위: 1인 기준 0.5~2일의 검증 가능한 수직 슬라이스
+> 문서 버전: v1.2 · 기준일: 2026-08-02 · 실행 단위: 1인 기준 0.5~2일의 검증 가능한 수직 슬라이스
 
 ## 1. 목적
 
@@ -20,29 +20,27 @@
 | 테넌시 | 부분 구현 | 테넌트/멤버십 RLS, 생성 RPC, S01 복합 FK·트리거·worker 방어 | S01 SQL 실DB 검증, 테넌트 선택 정책 |
 | 사업자/계정 | 부분 구현 | 프로필 CRUD 일부, 비밀번호 AES-256-GCM 저장, S04 D-1 로그인 사전 점검 코드 | 수정/삭제, 실계정 로그인 검증(실사이트) |
 | 시안 | 부분 구현 | Storage 업로드, 이미지 크기, AI 규격 검증, S02 최신 검증 제출 게이트 | MIME/확장자 강화, 비용 제어 |
-| 자동 신청 | 코드 완료 | S01 관계 무결성, S02 준비도 체크리스트·DB 게이트·1회 신청 만료 | SQL 실DB 회귀 테스트, 상태 변경 UX |
-| 창구/스케줄러 | 코드 완료 | S02 실행 직전 준비도, S03 규칙·실측 일정 우선순위·diff·일일 crawl 큐잉, S04 D-1 계정 사전 점검·제출 상태 가드 | SQL 실DB 회귀, 실사이트 관측·실계정 로그인, 운영자 검토 UI |
-| 화성 어댑터 | 부분 구현 | 게시대/일정 파서, 로그인, dry-run/제출 흐름 | 실계정 리허설, 최종 성공 신호 검증 |
-| 감사 증적 | 부분 구현 | 단계별 스크린샷 Storage 업로드 | HTML 스냅샷, 사용자/운영자 조회, 보존 정책 |
+| 자동 신청 | 코드 완료 | S01 관계 무결성, S02 준비도 게이트, S05 beta 전용 1회 리허설 예약·실제 제출 차단 | 실계정 리허설, 상태 변경 UX |
+| 창구/스케줄러 | 코드 완료 | S02 실행 직전 준비도, S03 일정 동기화, S04 D-1 점검, S05 dry-run 한정 열린 창구 catch-up | 실사이트 관측·실계정 로그인, 운영자 검토 UI |
+| 화성 어댑터 | 코드 준비 완료 | 게시대/일정 파서, 로그인, 최종 저장 요청 차단 dry-run 흐름 | Fly 실가동 후 본인 실계정 리허설, 최종 성공 신호 검증 |
+| 감사 증적 | 코드 준비 완료 | S05 5단계 스크린샷·HTML·URL·시각과 전용 완료 상태 | 실사이트 증적 검수, 보존 정책 |
 | 재시도 | 부분 구현 | 오류 코드별 지연 재큐잉 | 상태 머신 강제, 원자성/경쟁 조건 테스트 |
 | 캡차 릴레이 | 구현 골격 | Storage → DB → 웹 답변 → worker 폴링 | 실제 캡차 사이트 검증, 알림 없이는 사용 불가 |
 | 알림 | 미구현 | DB 큐는 있으나 로그 후 `sent` 처리하는 stub | 실제 이메일 발송, 실패/재시도/공급자 ID |
 | 결과 수집 | 미구현에 가까움 | 공개 컨텍스트 파서 골격 | uriad 계정 로그인 후 마이페이지 수집 |
 | 관리자 운영 | 미구현 | DB에는 attempts/crawl_runs/results 존재 | 운영 화면, 재시도, 결과 수동 매칭 |
-| 자동 테스트 | 부분 구현 | core 141개, adapters 17개 통과 | worker/web/DB 통합·E2E, RLS 테스트 |
-| 배포 | 문서/설정 존재 | Vercel/Fly/Supabase 가이드, CI | 실제 환경 검증, 모니터링, 복구 연습 |
+| 자동 테스트 | 부분 구현 | core·adapter·worker 회귀 테스트와 PR SQL 회귀 job | 실사이트 E2E, 운영 RLS 검증 |
+| 배포 | 문서/설정 존재 | Vercel/Fly/Supabase 가이드, 기존 verify와 별도 SQL CI | Fly 실가동, 모니터링, 복구 연습 |
 
-### 2.1 2026-08-01 검증 결과
+### 2.1 2026-08-02 검증 기준
 
-- `corepack pnpm verify`: build → typecheck → lint → test 전체 통과
-- 자동 테스트 158개 통과
-  - `@youni/core`: 141개(무결성 14개, readiness 29개, schedule 24개, query fail-closed 5개,
-    S04 precheck 59개 포함)
-  - `@youni/adapters`: 17개(화성 schedule 파서 실패 분류 3개, S04 증적 캡처 금지 3개 포함)
-- 패키지를 의존성 순서로 빌드한 후 워크스페이스 전체 TypeScript 검사 통과
-- 루트 ESLint가 `apps`와 `packages`의 TypeScript 파일을 실제 검사
-- 실제 Supabase·Redis·Playwright 실사이트 통합 테스트는 환경 자격정보가 없어 미실행
-- `supabase/tests/*.sql`(0002~0005) 회귀 테스트는 이 환경에 Docker/psql이 없어 **미실행**
+- 기존 `corepack pnpm verify`는 build → typecheck → lint → test 전체를 계속 검사한다.
+- PR의 별도 `sql-regression` job은 Supabase CLI 2.111.0과 로컬 DB를 사용해 모든 migration·seed를
+  적용하고 `supabase/tests/*.sql`(0002~0006)을 실행한다.
+- S05는 core·adapter·worker·web 테스트에서 beta/live 게이트, dry-run 모드 합성, 열린 창구 catch-up,
+  최종 저장 요청 차단, 5단계 증적과 완료/실패 DB 패치를 검증한다.
+- 실제 Supabase 운영 프로젝트·Redis·Fly·Playwright 실사이트 통합은 자격정보와 외부 창구가 필요해
+  자동 CI 범위에 포함하지 않는다.
 
 ### 2.2 Orca 오케스트레이션 진행 상태
 
@@ -53,6 +51,7 @@
 | S02 신청 준비도 | 코드·리뷰 완료 | UI·DB·scheduler 게이트와 S02R fail-closed 보완 완료, SQL 회귀 테스트는 Docker/Postgres 환경에서 실행 대기 |
 | S03 일정 동기화 | 코드·리뷰 완료 | 대상 게시기간 단일 창구, `manual > crawled > rule`, 위험 변경 수동 검토·CAS 보완 완료; SQL 회귀·실사이트 crawl 대기 |
 | S04 계정 사전 점검 | 코드·테스트 완료 | 가짜 어댑터 기반 자동 테스트 59개 통과(로그인 성공/실패, 계정 공유 1회 로그인, 실패 격리, 회수 소진 fail-closed, 알림 멱등, 제출 상태 가드). 0005 SQL 회귀 테스트와 **실계정·실사이트 로그인 검증은 대기** |
+| S05 화성 dry-run | 코드 준비 완료(병합 시) | 대시보드 1회 리허설, beta 실 제출 차단, 전용 완료 상태와 5단계 증적을 구현. **Fly 실가동·본인 실계정 리허설과 마이페이지 미신청 확인은 대기** |
 
 ## 3. 상용화 차단 항목
 
@@ -281,15 +280,17 @@ flowchart TD
   - 실제 지자체 계정으로 로그인 성공/실패를 확인하는 실사이트 리허설(M1, S05와 함께)
 - 선행: S02
 
-### S05. 화성 실계정 dry-run 리허설
+### S05. 화성 실계정 dry-run 리허설 — 코드 준비 완료(병합 시), 실측 대기
 
 - 예상: 코드 1일 + 실제 창구 1회
 - 사용자 가치: 실제 제출 전에 자동화가 현재 사이트에서 동작함을 증명한다.
-- 변경 후보:
-  - 실제 HTML fixture 갱신
-  - selector와 경로 보정
-  - dry-run 전용 실행 명령 또는 운영자 액션
-  - 증적 체크리스트
+- 구현:
+  - 대시보드에서 화성 `beta`를 고르면 실 제출 대신 `1회 리허설 예약`만 제공하고 최종 제출이
+    없다는 경고를 표시한다. DB RPC도 `dry_run_only=true`, `recurrence=once`를 강제한다.
+  - 스케줄러는 열린 창구 catch-up을 dry-run에만 허용하며, request/job/payload/전역 플래그 중
+    하나라도 true면 실행 모드는 끝까지 dry-run이다.
+  - 어댑터는 최종 `reserved_save.jsp` 요청을 네트워크 단계에서 차단하고 최종 저장 버튼을 누르지 않는다.
+  - migration `0006`은 `dry_run_completed`, 완료 시각, 구조화된 audit events를 저장한다.
 - dry-run 종료점:
   - 로그인 성공
   - 규약 동의
@@ -299,12 +300,14 @@ flowchart TD
 - 수용 기준:
   - 외부 제출 요청이 발생하지 않는다.
   - 위 다섯 단계 스크린샷과 URL/시각이 저장된다.
-  - 잡은 `submitted`가 아니라 명시적 `dry_run_completed` 의미로 표시된다.
-    현재 스키마를 유지한다면 `needs_manual + dry-run 완료 코드`를 일관되게 사용한다.
+  - 잡은 `submitted`가 아니라 명시적 `dry_run_completed`로 표시되고 `submitted_at`과
+    `receipt_no`는 비어 있다.
   - fixture 회귀 테스트가 selector 변경을 감지한다.
 - 수동 확인:
+  - Fly 워커를 실제 배포하고 본인 hsdr 계정으로 대시보드의 1회 리허설을 실행
   - 실제 사이트 마이페이지에 신청이 생기지 않았는지 확인
   - audit Storage 경로와 화면 조회 확인
+- 완료 게이트: 위 수동 확인 전에는 S05를 완료로 표시하지 않으며 S06 실제 제출을 시작하지 않는다.
 - 선행: S03, S04
 
 ### S06. 실제 제출 성공 확정과 멱등성
@@ -499,7 +502,7 @@ S00~S14와 유료 결제 1건 이후에만 시작한다.
 | 6 | S03 | schedule crawl/upsert/diff |
 | 7~8 | S04 — 코드·테스트 완료 | credential 로그인 precheck와 실패 격리·알림 레코드(실계정 검증은 M1) |
 | 9 | S07 | 실제 이메일 공급자 연동 |
-| 10 | S05 준비 | 화성 fixture·dry-run 실행 도구·증적 체크 |
+| 10 | S05 준비 — 코드 준비 완료(병합 시) | 대시보드 1회 리허설·beta 안전 게이트·증적 체크(실계정 실행은 대기) |
 
 이후 실제 창구에서 S05를 통과하고 S06 → S08 → S09 순서로 한 사이클을 닫는다.
 
@@ -535,10 +538,11 @@ S00~S14와 유료 결제 1건 이후에만 시작한다.
 | `0003_request_readiness.sql` | 자동 신청 준비도 게이트 트리거/RPC (적용) |
 | `0004_window_schedule_identity.sql` | 창구 논리 키 unique(muni, target_period_start) (적용) |
 | `0005_credential_precheck.sql` | D-1 계정 사전 점검 기록 unique(window, credential) (적용) |
-| `0006_notification_delivery.sql` | provider ID, attempts, last_error, next_retry_at (예정) |
-| `0007_result_idempotency.sql` | 결과 source key/잡/기간 중복 방지 (예정) |
-| `0008_operator_audit.sql` | 운영자 액션 기록과 권한 (예정) |
-| `0009_billing_manual.sql` | 첫 유료 고객 수동 청구(필요 시) |
+| `0006_s05_dry_run_rehearsal.sql` | dry-run 전용 요청·완료 상태·구조화 증적 (이 슬라이스) |
+| `0007_notification_delivery.sql` | provider ID, attempts, last_error, next_retry_at (예정) |
+| `0008_result_idempotency.sql` | 결과 source key/잡/기간 중복 방지 (예정) |
+| `0009_operator_audit.sql` | 운영자 액션 기록과 권한 (예정) |
+| `0010_billing_manual.sql` | 첫 유료 고객 수동 청구(필요 시) |
 
 migration마다 up 검증 SQL, 기존 데이터 사전 점검 SQL, 애플리케이션 호환 순서를 기록한다.
 

@@ -38,6 +38,9 @@ export interface ReadinessResult {
   issues: ReadinessIssue[];
 }
 
+/** live 제출은 active 지자체만, dry_run 리허설은 active 또는 beta 지자체를 허용한다. */
+export type ReadinessMode = "live" | "dry_run";
+
 /** 판정 대상 스냅샷 — 모든 필드는 호출자가 DB 에서 읽어 정규화해 채운다. */
 export interface ReadinessInput {
   tenantId: string;
@@ -71,18 +74,30 @@ const DESIGNS = { label: "시안 검증하기", href: "/designs" };
  * 자동(active) 신청이 준비됐는지 판정. issues 가 비면 ready=true.
  * 순서는 안정적이다(항목 순).
  */
-export function checkRequestReadiness(input: ReadinessInput): ReadinessResult {
+export function checkRequestReadiness(
+  input: ReadinessInput,
+  mode: ReadinessMode = "live",
+): ReadinessResult {
   const issues: ReadinessIssue[] = [];
 
-  // 1. 지자체 활성 + autoSubmit 지원
-  if (!input.municipality || input.municipality.status !== "active") {
+  // 1. live 는 active 만, dry-run 은 active/beta 만 허용. broken/disabled 는 항상 차단.
+  const municipalityStatusAllowed =
+    input.municipality?.status === "active" ||
+    (mode === "dry_run" && input.municipality?.status === "beta");
+  if (!municipalityStatusAllowed) {
     const status = input.municipality?.status ?? "unknown";
     issues.push({
       code: "municipality_inactive",
-      messageKo: `해당 지자체는 아직 자동 신청 대상이 아닙니다 (상태: ${status}). 지금은 수동(assisted) 신청만 안내됩니다.`,
-      waitKo: "지자체 자동화가 활성화되면 자동 신청을 등록할 수 있습니다.",
+      messageKo:
+        mode === "dry_run"
+          ? `해당 지자체는 리허설 대상이 아닙니다 (상태: ${status}).`
+          : `해당 지자체는 아직 자동 신청 대상이 아닙니다 (상태: ${status}). 지금은 수동(assisted) 신청만 안내됩니다.`,
+      waitKo:
+        mode === "dry_run"
+          ? "지자체가 beta 또는 active 상태가 되면 리허설을 등록할 수 있습니다."
+          : "지자체 자동화가 활성화되면 자동 신청을 등록할 수 있습니다.",
     });
-  } else if (input.municipality.capabilities?.autoSubmit !== true) {
+  } else if (input.municipality?.capabilities?.autoSubmit !== true) {
     issues.push({
       code: "autosubmit_unavailable",
       messageKo: "해당 지자체는 온라인 자동 제출을 지원하지 않아 수동(assisted) 신청만 안내됩니다.",

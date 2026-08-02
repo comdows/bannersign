@@ -4,7 +4,7 @@
 >
 > 이 문서는 "다음에 무엇을 개발할지"의 단일 기준이다. 모든 기능은 `SPEC-<도메인>-<번호>` ID로
 > 관리하고, 로드맵의 Phase와 연결한다. 상태: ✅ 완료 / 🟡 부분 / ⬜ 미착수.
-> 최종 갱신: 2026-07-26.
+> 최종 갱신: 2026-08-02.
 
 ---
 
@@ -15,11 +15,11 @@
 | 컴포넌트 | 상태 | 근거 (파일) |
 |---|---|---|
 | 모노레포/CI (pnpm+Turbo) | ✅ | `turbo.json`, `.github/workflows` |
-| DB 스키마+RLS 멀티테넌시 (17테이블) | ✅ 운영 적용됨 | `supabase/migrations/0001_init.sql` — Supabase 프로젝트에 적용 완료 |
+| DB 스키마+RLS 멀티테넌시 (17테이블) | 🟡 운영 갱신 대기 | 운영에는 0001 적용 완료. S05 dry-run 전용 필드·상태·증적을 추가하는 `0006`은 이 슬라이스 병합·배포 후 적용 |
 | 게시대 시드 (화성 197곳) | ✅ | `supabase/seed_boards_hwaseong.sql` |
 | 지자체 디렉토리 시드 (21곳 disabled) | ✅ | `supabase/seed_directory.sql` |
 | 스케줄러 (마스터 틱: 창구 생성→상태 전이→D-3 잡 생성→오픈 큐잉→D-1 점검→결과 큐잉) | ✅ | `apps/worker/src/scheduler.ts` |
-| 자동 제출 프로세서 (dry-run·감사증적·재시도 포함) | ✅ | `apps/worker/src/processors/submit.ts` |
+| 자동 제출 프로세서 (dry-run·감사증적·재시도 포함) | 🟡 코드 준비 완료 | S05 전용 완료 상태·5단계 증적·최종 요청 안전 차단 구현, Fly·실계정 리허설 대기 |
 | 크롤 프로세서 (게시대/일정) | ✅ | `apps/worker/src/processors/crawl.ts` |
 | 결과 수집 프로세서 | ✅ 코드 완성 | `apps/worker/src/processors/results.ts` — uriad 계열은 credential별 로그인 후 마이페이지 파싱(exact/1:1 fuzzy 매칭). 실측 검증은 8월 발표 때. → SPEC-RESULT-01 |
 | 알림 프로세서 (이메일 Resend) | ✅ 코드 완성 | `apps/worker/src/processors/notify.ts` — RESEND_API_KEY 설정 시 발송, 미설정 시 스텁 폴백. 실수신 확인 남음. → SPEC-NOTIFY-01 |
@@ -28,7 +28,7 @@
 | 오산·시흥 어댑터 (uriad 팩토리, beta·autoSubmit=false) | 🟡 | `packages/adapters/src/{osan,siheung}/` — 실측 dry-run 미통과. → SPEC-ADAPT-02 |
 | AI 시안 검증 (Claude vision structured output) | ✅ 코드 완성 | `packages/ai/src/designValidation.ts` — 실전 튜닝 전. → SPEC-AI-01 |
 | AI 규격 파싱 | ✅ 코드 완성 | `packages/ai/src/specParsing.ts` |
-| web 대시보드 (로그인·설정·프로필·계정등록·시안·자동신청·캡차) | ✅ 골격+동작 | `apps/web/app/(dashboard)/` — 온보딩 다듬기 전. → SPEC-WEB-01 |
+| web 대시보드 (로그인·설정·프로필·계정등록·시안·자동신청·캡차) | ✅ 골격+동작 | 화성 beta 선택 시 실제 신청 대신 `1회 리허설 예약`과 최종 제출 없음 경고 제공. → SPEC-WEB-01 |
 | 어댑터 계약/픽스처 테스트 | ✅ | `packages/adapters/src/contract.test.ts`, `hwaseong/adapter.test.ts` |
 | **인프라: Supabase(운영)·Vercel web(운영)·Upstash Redis(생성)** | ✅ | youni-web.vercel.app 가동 |
 | **인프라: Fly 워커** | 🟡 진행 중 | 앱 `youni-worker` 생성·시크릿 주입 단계, `fly deploy` 남음. → SPEC-INFRA-01 |
@@ -57,10 +57,14 @@
 
 ### SUBMIT — 자동 제출
 
-**SPEC-SUBMIT-01 화성 dry-run 리허설** — Phase 0 · ⬜ (8월 1~5일 창구)
+**SPEC-SUBMIT-01 화성 dry-run 리허설** — Phase 0 · 🟡 코드 준비 완료(병합 시), 실측 대기
 - 목적: 실창구에서 로그인→게시대선택→시안첨부→제출 직전 중단까지 검증.
-- AC: audit 버킷에 단계별 스크린샷, `submission_jobs` 상태 전이 정상, 최종 제출 미발생.
-- 파일: `apps/worker/src/processors/submit.ts`, `packages/adapters/src/uriad/factory.ts`.
+- 구현: 대시보드 1회 리허설, beta live 차단, 열린 창구 dry-run catch-up, OR 방식 dry-run
+  모드 합성, `reserved_save.jsp` 요청 차단, `dry_run_completed` 상태와 5단계 구조화 증적.
+- 남은 AC: Fly 워커 실가동 후 본인 hsdr 계정으로 실행해 audit 증적을 검수하고, 실제 사이트
+  마이페이지에 신청이 생기지 않았음을 확인한다. 통과 전 S06 실제 제출은 차단한다.
+- 파일: `apps/worker/src/processors/submit.ts`, `packages/adapters/src/uriad/factory.ts`,
+  `apps/web/app/(dashboard)/requests/`.
 
 **SPEC-SUBMIT-02 실제 제출 1건 (본인 계정)** — Phase 1 · ⬜
 - AC: `dry_run=false` 본인 신청 1건 → 접수번호 확인 → 감사 증적 검수. 이 통과 없이 타인 계정 제출 금지.
@@ -70,7 +74,7 @@
 
 ### ADAPT — 지자체 어댑터
 
-**SPEC-ADAPT-01 화성 (레퍼런스)** — Phase 0 · ✅ 실측 완료, dry-run만 남음(=SPEC-SUBMIT-01).
+**SPEC-ADAPT-01 화성 (레퍼런스)** — Phase 0 · 🟡 흐름 실측·안전 코드 완료, 실계정 dry-run만 남음(=SPEC-SUBMIT-01).
 
 **SPEC-ADAPT-02 오산 어댑터 활성화** — Phase 2 · 🟡
 - AC: [확장 런북](#3-어댑터-확장-런북) 5단계 통과 → `autoSubmit=true`, status `active`. sub03 추첨 경로 상이 가능성 실측.
@@ -114,13 +118,13 @@
 ### WEB — 대시보드·온보딩
 
 **SPEC-WEB-01 온보딩 플로우 다듬기** — Phase 2 · 🟡 1차 완료
-- 구현: 대시보드 상단 온보딩 체크리스트(5단계 진행표시, 다음 단계 유도, 완료 시 자동 숨김), 자동신청 페이지 선행조건 안내(프로필/계정/시안 미비 시 폼 대신 준비 안내), 시안 페이지 빈 상태·워크스페이스 가드, "당첨 보장 아님" 문구.
+- 구현: 대시보드 상단 온보딩 체크리스트(5단계 진행표시, 다음 단계 유도, 완료 시 자동 숨김), 자동신청 페이지 선행조건 안내(프로필/계정/시안 미비 시 폼 대신 준비 안내), 시안 페이지 빈 상태·워크스페이스 가드, "당첨 보장 아님" 문구. 화성 `beta` 선택 시에는 실제 자동 신청 버튼을 숨기고 `1회 리허설 예약`과 최종 제출 없음 경고를 표시한다.
 - 남은 AC: 베타 사용자 1명이 안내 없이 완주하는 실관찰 후 마찰 보정.
 - 파일: `apps/web/lib/onboarding.ts`, `app/(dashboard)/checklist.tsx`, `dashboard/`, `designs/`, `requests/`.
 
 **SPEC-WEB-02 제출 타임라인(감사 증적 열람)** — Phase 2 · ✅ 구현 완료
-- 구현: `/jobs/[id]` — 잡 요약(접수번호·게시기간·창구·오류) + 시도별 단계 스크린샷 갤러리(서명 URL 1시간, RLS 테넌트 경로 제한). 대시보드 잡 목록에서 "타임라인" 링크.
-- 파일: `apps/web/app/(dashboard)/jobs/[id]/page.tsx`. 8월 dry-run 증적 검수를 이 화면으로 진행.
+- 구현: `/jobs/[id]` — 잡 요약(접수번호·게시기간·창구·오류) + 시도별 단계 스크린샷 갤러리(서명 URL 1시간, RLS 테넌트 경로 제한). S05의 리허설 완료 상태·시각과 구조화 증적을 우선 표시하고 기존 스크린샷 경로 배열을 폴백으로 사용한다.
+- 파일: `apps/web/app/(dashboard)/jobs/[id]/page.tsx`. 실제 S05 dry-run 증적 검수를 이 화면으로 진행.
 
 **SPEC-WEB-03 관리자 콘솔** — Phase 3 · ⬜
 - AC: broken 어댑터 현황, 결과 매칭 확인 큐, 지자체별 성공률.
@@ -195,7 +199,7 @@
 | # | 작업 | 스펙 | Phase | 비고 |
 |---|---|---|---|---|
 | 1 | Fly 워커 배포 마무리 | SPEC-INFRA-01 | 0 | 시크릿 주입 후 `fly deploy` — 진행 중 |
-| 2 | 8월 창구 dry-run 리허설 | SPEC-SUBMIT-01 | 0 | **8/1~8/5 고정 일정** — 놓치면 9월로 이월 |
+| 2 | 화성 실계정 dry-run 리허설 | SPEC-SUBMIT-01 | 0 | 🟡 코드 준비 완료(병합 시) — Fly 배포·본인 계정 실행·마이페이지 미신청 확인 대기 |
 | 3 | 이메일 알림 실연동 | SPEC-NOTIFY-01 | 1 | ✅ 코드 완료 — RESEND_API_KEY 주입+실수신 확인만 남음 |
 | 4 | uriad 인증 결과 수집 | SPEC-RESULT-01 | 1 | ✅ 코드 완료 — 8월 발표 때 실측 검증 |
 | 5 | 실제 제출 1건(본인) | SPEC-SUBMIT-02 | 1 | dry-run 검수 후 9월 창구 |

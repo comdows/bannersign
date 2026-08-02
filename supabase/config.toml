@@ -1,0 +1,13 @@
+project_id = "youni-ci"
+
+[db]
+port = 54322
+major_version = 15
+
+[db.seed]
+enabled = true
+sql_paths = [
+  "./seed.sql",
+  "./seed_boards_hwaseong.sql",
+  "./seed_directory.sql",
+]

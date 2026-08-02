@@ -9,6 +9,7 @@ const STATUS_KO: Record<string, string> = {
   awaiting_captcha: "캡차 입력 필요",
   needs_manual: "수동 처리 필요",
   submitted: "제출 완료",
+  dry_run_completed: "리허설 완료",
   failed: "실패",
   cancelled: "취소",
 };
@@ -23,8 +24,19 @@ const OUTCOME_KO: Record<string, string> = {
   selector_missing: "사이트 구조 변경 의심",
   boards_full: "게시대 마감",
   already_submitted: "이미 제출됨",
+  dry_run_completed: "리허설 완료",
+  audit_incomplete: "감사 증적 불완전",
+  dry_run_safety_violation: "리허설 안전 경계 위반",
   unknown: "알 수 없는 오류",
 };
+
+interface AuditEvent {
+  step: string;
+  url: string;
+  capturedAt: string;
+  screenshotPath: string | null;
+  htmlPath: string | null;
+}
 
 interface AttemptRow {
   id: string;
@@ -35,6 +47,16 @@ interface AttemptRow {
   step_reached: string | null;
   error_detail: string | null;
   screenshots: string[];
+  audit_events: AuditEvent[];
+}
+
+function screenshotPaths(attempt: AttemptRow): string[] {
+  const evidencePaths = attempt.audit_events
+    .map((event) => event.screenshotPath)
+    .filter((path): path is string => path !== null && path.length > 0);
+  return evidencePaths.length > 0
+    ? evidencePaths
+    : attempt.screenshots.filter((path) => path.endsWith(".png"));
 }
 
 /** 스크린샷 경로(NN-단계명.png)에서 단계명 복원 */
@@ -54,7 +76,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   const { data: job } = await supabase
     .from("submission_jobs")
     .select(
-      "id, status, receipt_no, submitted_at, error_code, error_detail, dry_run, created_at, application_windows(opens_at, closes_at, target_period_start, target_period_end), application_requests(municipalities(name))",
+      "id, status, receipt_no, submitted_at, dry_run_completed_at, selected_board_site_id, error_code, error_detail, dry_run, created_at, application_windows(opens_at, closes_at, target_period_start, target_period_end), application_requests(municipalities(name))",
     )
     .eq("id", id)
     .maybeSingle();
@@ -62,13 +84,13 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
 
   const { data: attemptsData } = await supabase
     .from("submission_attempts")
-    .select("id, attempt_no, started_at, ended_at, outcome, step_reached, error_detail, screenshots")
+    .select("id, attempt_no, started_at, ended_at, outcome, step_reached, error_detail, screenshots, audit_events")
     .eq("job_id", id)
     .order("attempt_no", { ascending: true });
   const attempts = (attemptsData ?? []) as AttemptRow[];
 
   // 스크린샷 서명 URL (1시간) — RLS로 본인 테넌트 경로만 조회 가능
-  const allPaths = attempts.flatMap((a) => a.screenshots).filter((p) => p.endsWith(".png"));
+  const allPaths = Array.from(new Set(attempts.flatMap((attempt) => screenshotPaths(attempt))));
   const urlByPath = new Map<string, string>();
   if (allPaths.length > 0) {
     const { data: signed } = await supabase.storage.from("audit").createSignedUrls(allPaths, 3600);
@@ -103,8 +125,12 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             <tr>
               <th>접수번호</th>
               <td>{job.receipt_no ?? "—"}</td>
-              <th>제출 시각</th>
-              <td>{job.submitted_at ? new Date(job.submitted_at).toLocaleString("ko-KR") : "—"}</td>
+              <th>{job.dry_run_completed_at ? "리허설 완료 시각" : "제출 시각"}</th>
+              <td>
+                {job.dry_run_completed_at || job.submitted_at
+                  ? new Date(job.dry_run_completed_at ?? job.submitted_at!).toLocaleString("ko-KR")
+                  : "—"}
+              </td>
             </tr>
             <tr>
               <th>게시 기간</th>
@@ -142,7 +168,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           <h3>
             시도 #{a.attempt_no}{" "}
             {a.outcome && (
-              <span className={`badge ${a.outcome === "ok" ? "pass" : "fail"}`}>
+              <span className={`badge ${["ok", "dry_run_completed"].includes(a.outcome) ? "pass" : "fail"}`}>
                 {OUTCOME_KO[a.outcome] ?? a.outcome}
               </span>
             )}
@@ -154,33 +180,41 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           </p>
           {a.error_detail && <p style={{ color: "#8f1d1d", fontSize: 13 }}>{a.error_detail}</p>}
 
+          {a.audit_events.length > 0 && (
+            <ol style={{ paddingLeft: 20, fontSize: 13 }}>
+              {a.audit_events.map((event) => (
+                <li key={`${event.step}-${event.capturedAt}`}>
+                  <strong>{event.step}</strong> · {new Date(event.capturedAt).toLocaleString("ko-KR")} · {event.url}
+                </li>
+              ))}
+            </ol>
+          )}
+
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-            {a.screenshots
-              .filter((p) => p.endsWith(".png"))
-              .map((p, i) => {
-                const url = urlByPath.get(p);
-                return (
-                  <figure key={p} style={{ margin: 0, width: 220 }}>
-                    <figcaption style={{ fontSize: 12, marginBottom: 4 }}>
-                      {i + 1}. {stepLabel(p)}
-                    </figcaption>
-                    {url ? (
-                      <a href={url} target="_blank" rel="noreferrer">
-                        {/* 감사 증적 원본 — 서명 URL이라 next/image 최적화 대상 아님 */}
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={url}
-                          alt={stepLabel(p)}
-                          style={{ width: "100%", border: "1px solid #ddd", borderRadius: 4 }}
-                        />
-                      </a>
-                    ) : (
-                      <span style={{ fontSize: 12, color: "#999" }}>이미지 로드 불가</span>
-                    )}
-                  </figure>
-                );
-              })}
-            {a.screenshots.filter((p) => p.endsWith(".png")).length === 0 && (
+            {screenshotPaths(a).map((p, i) => {
+              const url = urlByPath.get(p);
+              return (
+                <figure key={p} style={{ margin: 0, width: 220 }}>
+                  <figcaption style={{ fontSize: 12, marginBottom: 4 }}>
+                    {i + 1}. {stepLabel(p)}
+                  </figcaption>
+                  {url ? (
+                    <a href={url} target="_blank" rel="noreferrer">
+                      {/* 감사 증적 원본 — 서명 URL이라 next/image 최적화 대상 아님 */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={url}
+                        alt={stepLabel(p)}
+                        style={{ width: "100%", border: "1px solid #ddd", borderRadius: 4 }}
+                      />
+                    </a>
+                  ) : (
+                    <span style={{ fontSize: 12, color: "#999" }}>이미지 로드 불가</span>
+                  )}
+                </figure>
+              );
+            })}
+            {screenshotPaths(a).length === 0 && (
               <span style={{ fontSize: 13, color: "#999" }}>스크린샷 없음</span>
             )}
           </div>

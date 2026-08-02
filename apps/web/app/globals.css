@@ -68,7 +68,7 @@ table.list td {
   background: #eee;
 }
 
-.badge.pass, .badge.submitted, .badge.selected { background: #d9f2df; color: #14652c; }
+.badge.pass, .badge.submitted, .badge.dry_run_completed, .badge.selected { background: #d9f2df; color: #14652c; }
 .badge.warn, .badge.awaiting_captcha, .badge.needs_manual { background: #fdf3d7; color: #7a5b00; }
 .badge.fail, .badge.failed, .badge.rejected, .badge.broken { background: #fbdcdc; color: #8f1d1d; }
 

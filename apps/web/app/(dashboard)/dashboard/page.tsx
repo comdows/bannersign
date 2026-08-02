@@ -10,6 +10,7 @@ const STATUS_KO: Record<string, string> = {
   awaiting_captcha: "캡차 입력 필요",
   needs_manual: "수동 처리 필요",
   submitted: "제출 완료",
+  dry_run_completed: "리허설 완료",
   failed: "실패",
   cancelled: "취소",
 };
@@ -22,7 +23,7 @@ export default async function DashboardPage() {
     supabase
       .from("submission_jobs")
       .select(
-        "id, status, receipt_no, submitted_at, error_detail, created_at, application_requests(municipality_id), application_windows(opens_at, closes_at)",
+        "id, status, receipt_no, submitted_at, dry_run_completed_at, error_detail, created_at, application_requests(municipality_id), application_windows(opens_at, closes_at)",
       )
       .order("created_at", { ascending: false })
       .limit(30),
@@ -73,7 +74,7 @@ export default async function DashboardPage() {
             <tr>
               <th>상태</th>
               <th>접수번호</th>
-              <th>제출 시각</th>
+              <th>완료/제출 시각</th>
               <th>비고</th>
               <th></th>
             </tr>
@@ -85,7 +86,11 @@ export default async function DashboardPage() {
                   <span className={`badge ${j.status}`}>{STATUS_KO[j.status] ?? j.status}</span>
                 </td>
                 <td>{j.receipt_no ?? "—"}</td>
-                <td>{j.submitted_at ? new Date(j.submitted_at).toLocaleString("ko-KR") : "—"}</td>
+                <td>
+                  {j.dry_run_completed_at || j.submitted_at
+                    ? new Date(j.dry_run_completed_at ?? j.submitted_at!).toLocaleString("ko-KR")
+                    : "—"}
+                </td>
                 <td style={{ maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis" }}>
                   {j.error_detail ?? ""}
                 </td>

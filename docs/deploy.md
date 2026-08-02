@@ -3,6 +3,9 @@
 로드맵 Phase 0의 인프라 연결 절차. 순서대로 진행하면 화성 자동 신청이 실제로
 돌아가는 상태가 된다. 예상 비용: 월 0~5만원(무료 티어 위주).
 
+S05는 코드 준비와 자동 회귀 검증까지만 완료된 상태다. 아래 Fly 배포와 본인 hsdr 계정의
+실사이트 리허설을 통과하기 전에는 S05 완료 또는 실제 제출 가능 상태로 간주하지 않는다.
+
 전제: 이 저장소가 GitHub에 있고(comdows/youni), 로컬에 pnpm이 있음.
 
 ---
@@ -36,18 +39,23 @@ Anthropic API 키는 console.anthropic.com에서 발급 (ANTHROPIC_API_KEY).
      ```
      (연결 문자열: Settings → Database → Connection string → URI)
    - **없으면**: SQL 에디터에 아래 순서로 파일 내용을 붙여넣어 실행
-     1. `supabase/migrations/0001_init.sql`
-     2. `supabase/migrations/0002_tenant_reference_integrity.sql`
-     3. `supabase/migrations/0003_request_readiness.sql`
-     4. `supabase/migrations/0004_window_schedule_identity.sql`
-     5. `supabase/migrations/0005_credential_precheck.sql`
-     6. `supabase/seed.sql`
-     7. `supabase/seed_boards_hwaseong.sql`
-     8. `supabase/seed_directory.sql`
+      1. `supabase/migrations/0001_init.sql`
+      2. `supabase/migrations/0002_tenant_reference_integrity.sql`
+      3. `supabase/migrations/0003_request_readiness.sql`
+      4. `supabase/migrations/0004_window_schedule_identity.sql`
+      5. `supabase/migrations/0005_credential_precheck.sql`
+      6. `supabase/migrations/0006_s05_dry_run_rehearsal.sql`
+      7. `supabase/seed.sql`
+      8. `supabase/seed_boards_hwaseong.sql`
+      9. `supabase/seed_directory.sql`
 4. Storage 확인: 마이그레이션이 `designs`/`audit`/`captcha` private 버킷을 만든다.
    없으면 Storage에서 private 버킷 3개 수동 생성.
 5. Auth: Authentication → Providers → Email 활성화(매직링크). Site URL과
    Redirect URL에 web 배포 도메인(아래 3단계) + `/auth/callback` 추가.
+
+PR에서는 별도 `sql-regression` job이 Supabase CLI 2.111.0으로 로컬 DB를 시작하고 위
+migration·seed와 `supabase/tests/*.sql` 전체를 실행한다. 이 검증에는 운영 DB나 시크릿을
+사용하지 않는다.
 
 ---
 
@@ -107,12 +115,18 @@ fly deploy --config apps/worker/fly.toml --dockerfile apps/worker/Dockerfile .
 1. web 도메인 접속 → 매직링크 로그인 → 설정에서 워크스페이스 생성
 2. 사업자 프로필(주식회사 이음네트웍스) + 화성 사이트 계정(암호화 저장) 등록
 3. 시안 JPG 업로드 → 화성 규격으로 AI 검증 (pass/warn/fail 확인)
-4. 자동 신청 등록: 화성 + 프로필 + 계정 + 시안 + 희망 게시대
-5. worker 로그에서 스케줄러가 8월 창구(application_windows)를 잡는지 확인
-6. **dry-run 리허설**: 창구가 열리는 8월 1~5일에 worker가 로그인→게시대선택→
-   시안첨부까지 진행하고 최종 제출 직전에 멈춘 감사 스크린샷을 남기는지 확인
-   (audit 버킷 / 대시보드 신청 현황)
-7. dry-run 증적이 정상이면 `SUBMIT_DRY_RUN_DEFAULT=false`로 실제 제출 활성화
+4. 자동 신청 화면에서 화성(`beta`) + 프로필 + 계정 + 시안 + 희망 게시대를 고른다.
+   실제 신청 버튼 대신 **`1회 리허설 예약`**과 “최종 제출 없음” 경고가 보이는지 확인한다.
+5. `1회 리허설 예약`을 실행하고 생성된 요청이 `dry_run_only=true`, `recurrence=once`인지 확인한다.
+6. worker 로그에서 스케줄러가 현재 열린 창구(`application_windows`)를 dry-run catch-up으로
+   잡는지 확인한다.
+7. worker가 로그인→규약동의→게시대선택→시안첨부→최종 제출 직전까지 진행하고,
+   `reserved_save.jsp` 최종 저장 요청 없이 멈추는지 확인한다.
+8. 잡이 `dry_run_completed`이고 `submitted_at`·`receipt_no`가 비어 있는지, 잡 상세 화면에
+   다섯 단계의 URL·UTC 시각·스크린샷·HTML 증적이 모두 보이는지 확인한다.
+9. 본인 hsdr 마이페이지에 실제 신청이 생기지 않았는지 직접 확인한다.
+10. 7~9가 모두 통과하기 전에는 S05를 완료 처리하지 않고 S06 실제 제출을 시작하지 않는다.
+    `SUBMIT_DRY_RUN_DEFAULT=false` 전환도 별도의 승인된 S06 절차에서만 수행한다.
 
 ---
 

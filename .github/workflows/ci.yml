@@ -19,3 +19,25 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: node scripts/verify.mjs --install
+
+  sql-regression:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.111.0
+      - name: Start local Supabase database
+        run: supabase db start
+      - name: Apply migrations and seed
+        run: supabase db reset --local
+      - name: Run all SQL regression tests
+        run: |
+          for test_file in supabase/tests/*.sql; do
+            psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
+              -X -v ON_ERROR_STOP=1 -f "$test_file"
+          done
+      - name: Stop local Supabase database
+        if: always()
+        run: supabase stop --no-backup

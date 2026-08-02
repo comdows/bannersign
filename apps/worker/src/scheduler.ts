@@ -7,6 +7,7 @@ import {
   unwrapQuery,
   upcomingWindows,
   type ReadinessInput,
+  type ReadinessMode,
   type ReadinessResult,
   type WindowRule,
   type WindowSource,
@@ -16,6 +17,7 @@ import { db } from "./db.js";
 import { logger } from "./logger.js";
 import { env } from "./env.js";
 import { getQueue } from "./queues.js";
+import { canPrepareWindow, effectiveDryRun } from "./rehearsal.js";
 
 const DAY_MS = 24 * 3600_000;
 
@@ -101,27 +103,36 @@ async function generateWindows(now: Date): Promise<void> {
 
 async function transitionWindowStatuses(now: Date): Promise<void> {
   const iso = now.toISOString();
-  await db()
+  const { error: openError } = await db()
     .from("application_windows")
     .update({ status: "open" })
     .eq("status", "upcoming")
     .lte("opens_at", iso)
     .gt("closes_at", iso);
-  await db()
+  if (openError) throw openError;
+
+  const { error: closeError } = await db()
     .from("application_windows")
     .update({ status: "closed" })
     .in("status", ["upcoming", "open"])
     .lte("closes_at", iso);
+  if (closeError) throw closeError;
 }
 
-/** D-3 이내 창구: active request마다 submission_job(pending) 생성 + 알림 레코드 */
+/**
+ * D-3 이내 창구: active request마다 submission_job(pending) 생성 + 알림 레코드.
+ * 이미 열린 창구는 worker 재기동 catch-up을 위해 포함하되, 실 제출 요청은
+ * D-1 점검을 건너뛴 채 뒤늦게 실행하지 않도록 dry-run만 허용한다.
+ */
 async function prepareSubmissionJobs(now: Date): Promise<void> {
   const horizon = new Date(now.getTime() + 3 * DAY_MS).toISOString();
+  const nowIso = now.toISOString();
   const { data: windows, error } = await db()
     .from("application_windows")
     .select("*")
-    .eq("status", "upcoming")
-    .lte("opens_at", horizon);
+    .in("status", ["upcoming", "open"])
+    .lte("opens_at", horizon)
+    .gt("closes_at", nowIso);
   if (error) throw error;
 
   for (const w of (windows ?? []) as ApplicationWindowRow[]) {
@@ -141,6 +152,15 @@ async function prepareSubmissionJobs(now: Date): Promise<void> {
     }
 
     for (const req of (requests ?? []) as ApplicationRequestRow[]) {
+      const requestDryRun = effectiveDryRun(env.SUBMIT_DRY_RUN_DEFAULT, req.dry_run_only);
+      if (!canPrepareWindow(w.status, requestDryRun, w.opens_at, now)) {
+        logger.warn(
+          { requestId: req.id, windowId: w.id, status: w.status },
+          "열린 창구의 실 제출 catch-up 차단(fail-closed)",
+        );
+        continue;
+      }
+
       // 실행 직전 준비도 재검증 — 이미 존재하는 요청도 동일 기준으로 재확인한다.
       // 준비도는 시간에 따라 변한다(계정 잠김/지자체 broken/규격 갱신/게시대 비활성).
       // service-role 로 RLS 를 우회하므로 RLS 가 아니라 여기서 "명시적으로" 게이트한다.
@@ -150,7 +170,7 @@ async function prepareSubmissionJobs(now: Date): Promise<void> {
       // 식별자와 오류 세부를 구조화 error 로그로 남긴다(운영 장애 ≠ 사용자 데이터 미충족).
       let readiness: ReadinessResult;
       try {
-        readiness = await evaluateRequestReadiness(req);
+        readiness = await evaluateRequestReadiness(req, requestDryRun ? "dry_run" : "live");
       } catch (err) {
         logger.error(
           { err, requestId: req.id, windowId: w.id, municipalityId: w.municipality_id },
@@ -173,7 +193,7 @@ async function prepareSubmissionJobs(now: Date): Promise<void> {
           window_id: w.id,
           tenant_id: req.tenant_id,
           status: "pending",
-          dry_run: env.SUBMIT_DRY_RUN_DEFAULT,
+          dry_run: requestDryRun,
           queued_for: w.opens_at,
         })
         .select("id")
@@ -183,7 +203,7 @@ async function prepareSubmissionJobs(now: Date): Promise<void> {
         if (insErr.code !== "23505") logger.error({ err: insErr }, "job insert failed");
         continue;
       }
-      if (job) {
+      if (job && w.status === "upcoming" && new Date(w.opens_at).getTime() > now.getTime()) {
         await db().from("notifications").insert({
           tenant_id: req.tenant_id,
           channel: "email",
@@ -212,7 +232,10 @@ async function prepareSubmissionJobs(now: Date): Promise<void> {
  * 요청의 준비도 스냅샷을 DB 에서 로드해 @youni/core 의 순수 판정기로 평가한다.
  * (DB 결합은 여기, 판정 로직은 순수 함수 checkRequestReadiness — 후자를 단위 테스트한다.)
  */
-async function evaluateRequestReadiness(req: ApplicationRequestRow): Promise<ReadinessResult> {
+async function evaluateRequestReadiness(
+  req: ApplicationRequestRow,
+  mode: ReadinessMode,
+): Promise<ReadinessResult> {
   const boardIds = req.board_preferences.map((b) => b.boardSiteId);
   const [muniRes, credRes, profRes, specRes, boardsRes] = await Promise.all([
     db().from("municipalities").select("status, capabilities").eq("id", req.municipality_id).maybeSingle(),
@@ -289,7 +312,7 @@ async function evaluateRequestReadiness(req: ApplicationRequestRow): Promise<Rea
     boards: boardRows,
   };
 
-  return checkRequestReadiness(input);
+  return checkRequestReadiness(input, mode);
 }
 
 /** pending 잡을 오픈 시각 delayed BullMQ 잡으로 큐잉 */
