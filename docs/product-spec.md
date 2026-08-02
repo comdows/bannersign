@@ -1,10 +1,10 @@
 # youni 플랫폼 개발 기획서 (Product Spec)
 
-> 관련 문서: [사업계획서](business-plan.md) · [상용화 로드맵](roadmap.md) · [배포 가이드](deploy.md) · [지자체 디렉토리](site-research.md)
+> 관련 문서: [사업계획서](business-plan.md) · [상용화 로드맵](roadmap.md) · [배포 가이드](deploy.md) · [DB 마이그레이션 현황](migration-status.md) · [지자체 디렉토리](site-research.md)
 >
 > 이 문서는 "다음에 무엇을 개발할지"의 단일 기준이다. 모든 기능은 `SPEC-<도메인>-<번호>` ID로
 > 관리하고, 로드맵의 Phase와 연결한다. 상태: ✅ 완료 / 🟡 부분 / ⬜ 미착수.
-> 최종 갱신: 2026-08-02.
+> 최종 갱신: 2026-08-03.
 
 ---
 
@@ -15,7 +15,7 @@
 | 컴포넌트 | 상태 | 근거 (파일) |
 |---|---|---|
 | 모노레포/CI (pnpm+Turbo) | ✅ | `turbo.json`, `.github/workflows` |
-| DB 스키마+RLS 멀티테넌시 (17테이블) | 🟡 운영 갱신 대기 | 운영에는 0001 적용 완료. S05 dry-run 전용 필드·상태·증적을 추가하는 `0006`은 이 슬라이스 병합·배포 후 적용 |
+| DB 스키마+RLS 멀티테넌시 (17테이블) | ✅ 운영 `0001`~`0006` 적용 | 2026-08-03 현재 Supabase DB에서 `0006` 필수 컬럼 3개 확인. 이후 기준은 `docs/migration-status.md` |
 | 게시대 시드 (화성 197곳) | ✅ | `supabase/seed_boards_hwaseong.sql` |
 | 지자체 디렉토리 시드 (21곳 disabled) | ✅ | `supabase/seed_directory.sql` |
 | 스케줄러 (마스터 틱: 창구 생성→상태 전이→D-3 잡 생성→오픈 큐잉→D-1 점검→결과 큐잉) | ✅ | `apps/worker/src/scheduler.ts` |

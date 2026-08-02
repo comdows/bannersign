@@ -42,7 +42,9 @@ cd apps/web && cp .env.example .env.local && pnpm dev
 cd apps/worker && cp .env.example .env && pnpm dev
 ```
 
-Supabase 마이그레이션: `supabase db push` (또는 SQL 에디터에서 `supabase/migrations/*.sql` 순서대로 실행), 이후 `supabase/seed.sql`.
+Supabase 마이그레이션은 먼저 [운영 DB 마이그레이션 현황](docs/migration-status.md)을 확인한다.
+빈 신규 DB만 전체 파일을 순서대로 적용하고, 기존 DB에는 아직 적용되지 않은 다음 번호만 적용한다.
+적용 완료된 파일을 다시 실행하지 않는다.
 
 ## 문서 (docs/)
 
@@ -54,6 +56,7 @@ Supabase 마이그레이션: `supabase db push` (또는 SQL 에디터에서 `sup
 | [플랫폼 기획서](docs/platform-plan.md) | **무엇을 왜** — 고객, 제품 범위, 사용자 흐름, 운영·보안 원칙 |
 | [세부 개발 계획서](docs/development-plan.md) | **어떤 순서로** — 개발 슬라이스, 의존성, 검증 기준, 남은 게이트 |
 | [배포 가이드](docs/deploy.md) | Phase 0 인프라 연결 절차 |
+| [DB 마이그레이션 현황](docs/migration-status.md) | 운영 DB 적용 완료 번호·검증 근거·다음 번호 |
 | [지자체 디렉토리](docs/site-research.md) | 접수처 실측 데이터·템플릿 분류 |
 
 새 기능 개발은 [개발 기획서의 백로그](docs/product-spec.md#5-우선순위-백로그-지금--다음) 순서를 따른다.

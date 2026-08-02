@@ -526,7 +526,8 @@ S00~S14와 유료 결제 1건 이후에만 시작한다.
 - `SUBMIT_DRY_RUN_DEFAULT=true`를 기본값으로 유지한다.
 - 실제 제출은 지자체, 계정, 게시대, target period를 화면에 재확인한 뒤 승인한다.
 - 테스트 이메일은 별도 수신 도메인/태그를 사용한다.
-- 운영 DB migration은 백업 확인 후 forward-only로 적용한다.
+- 운영 DB migration은 백업 확인 후 forward-only로 적용하고, 실제 확인 결과를
+  [DB 마이그레이션 현황](migration-status.md)에 기록한다.
 
 ## 9. 데이터 migration 계획
 
@@ -538,13 +539,14 @@ S00~S14와 유료 결제 1건 이후에만 시작한다.
 | `0003_request_readiness.sql` | 자동 신청 준비도 게이트 트리거/RPC (적용) |
 | `0004_window_schedule_identity.sql` | 창구 논리 키 unique(muni, target_period_start) (적용) |
 | `0005_credential_precheck.sql` | D-1 계정 사전 점검 기록 unique(window, credential) (적용) |
-| `0006_s05_dry_run_rehearsal.sql` | dry-run 전용 요청·완료 상태·구조화 증적 (이 슬라이스) |
+| `0006_s05_dry_run_rehearsal.sql` | dry-run 전용 요청·완료 상태·구조화 증적 (2026-08-03 운영 적용 확인) |
 | `0007_notification_delivery.sql` | provider ID, attempts, last_error, next_retry_at (예정) |
 | `0008_result_idempotency.sql` | 결과 source key/잡/기간 중복 방지 (예정) |
 | `0009_operator_audit.sql` | 운영자 액션 기록과 권한 (예정) |
 | `0010_billing_manual.sql` | 첫 유료 고객 수동 청구(필요 시) |
 
 migration마다 up 검증 SQL, 기존 데이터 사전 점검 SQL, 애플리케이션 호환 순서를 기록한다.
+실제 DB 적용 여부와 다음 번호는 [DB 마이그레이션 현황](migration-status.md)을 단일 기준으로 삼는다.
 
 ## 10. 리스크 기반 우선순위
 
