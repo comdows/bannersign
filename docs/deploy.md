@@ -26,19 +26,24 @@ Anthropic API 키는 console.anthropic.com에서 발급 (ANTHROPIC_API_KEY).
 
 ## 1. Supabase (DB + Auth + Storage)
 
+운영 적용 전 [DB 마이그레이션 현황](migration-status.md)을 먼저 확인한다. 2026-08-03 확인 기준
+현재 Supabase DB는 `0001`~`0006` 적용 완료이며, 다음 적용 번호는 `0007`이다.
+
 1. supabase.com 가입 → New project (Region: **Northeast Asia (Seoul/Tokyo)**, 무료 플랜)
 2. 프로젝트 생성 후 값 3개 확보:
    - **Project URL**: Settings → API → Project URL
    - **anon key**: Settings → API → Project API keys → `anon` `public`
    - **service_role key**: 같은 화면 → `service_role` (비공개, worker 전용)
-3. 스키마+시드 적용 — 둘 중 하나:
-   - **psql 있으면**:
+3. 스키마+시드 적용:
+   - **기존 DB**: 현황 문서보다 큰 미적용 번호만 적용한다. `apply_all.sh`나 `0001`부터의 전체
+     재실행은 금지한다. 현재 기준으로 추가 적용할 파일은 없다.
+   - **빈 신규 DB + psql**: 전체 스키마와 시드를 처음 한 번만 적용한다.
      ```bash
      export DATABASE_URL="postgresql://postgres:<DB비밀번호>@db.<ref>.supabase.co:5432/postgres"
      ./supabase/apply_all.sh
      ```
      (연결 문자열: Settings → Database → Connection string → URI)
-   - **없으면**: SQL 에디터에 아래 순서로 파일 내용을 붙여넣어 실행
+   - **빈 신규 DB + SQL 에디터**: 아래 순서로 파일 내용을 붙여넣어 실행
       1. `supabase/migrations/0001_init.sql`
       2. `supabase/migrations/0002_tenant_reference_integrity.sql`
       3. `supabase/migrations/0003_request_readiness.sql`
@@ -55,7 +60,7 @@ Anthropic API 키는 console.anthropic.com에서 발급 (ANTHROPIC_API_KEY).
 
 PR에서는 별도 `sql-regression` job이 Supabase CLI 2.111.0으로 로컬 DB를 시작하고 위
 migration·seed와 `supabase/tests/*.sql` 전체를 실행한다. 이 검증에는 운영 DB나 시크릿을
-사용하지 않는다.
+사용하지 않으며 [운영 적용 현황](migration-status.md)을 자동으로 변경하지 않는다.
 
 ---
 
