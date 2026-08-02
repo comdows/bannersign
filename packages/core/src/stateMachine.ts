@@ -8,10 +8,18 @@ import type { SubmissionJobStatus } from "./types.js";
 const TRANSITIONS: Record<SubmissionJobStatus, SubmissionJobStatus[]> = {
   pending: ["queued", "cancelled"],
   queued: ["running", "cancelled"],
-  running: ["awaiting_captcha", "submitted", "failed", "needs_manual", "queued"],
+  running: [
+    "awaiting_captcha",
+    "submitted",
+    "dry_run_completed",
+    "failed",
+    "needs_manual",
+    "queued",
+  ],
   awaiting_captcha: ["running", "needs_manual", "failed", "cancelled"],
   needs_manual: ["queued", "submitted", "cancelled"],
   submitted: [],
+  dry_run_completed: [],
   failed: ["queued"], // 운영자 수동 재시도
   cancelled: [],
 };
@@ -26,7 +34,11 @@ export function assertTransition(from: SubmissionJobStatus, to: SubmissionJobSta
   }
 }
 
-export const TERMINAL_STATUSES: SubmissionJobStatus[] = ["submitted", "cancelled"];
+export const TERMINAL_STATUSES: SubmissionJobStatus[] = [
+  "submitted",
+  "dry_run_completed",
+  "cancelled",
+];
 
 /**
  * 자동 제출을 "시작해도 되는" 잡 상태 (S04).

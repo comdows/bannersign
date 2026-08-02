@@ -6,6 +6,7 @@ import type {
   MunicipalityCapabilities,
   MunicipalityStatus,
   SelectionMethod,
+  SubmissionAuditEvent,
   SubmissionJobStatus,
   WindowRule,
 } from "@youni/core";
@@ -158,6 +159,7 @@ export interface ApplicationRequestRow {
   board_preferences: BoardPreference[];
   max_entries: number;
   recurrence: "once" | "monthly";
+  dry_run_only: boolean;
   status: "active" | "paused" | "expired";
   created_at: string;
 }
@@ -171,6 +173,7 @@ export interface SubmissionJobRow {
   dry_run: boolean;
   queued_for: string | null;
   submitted_at: string | null;
+  dry_run_completed_at: string | null;
   receipt_no: string | null;
   selected_board_site_id: string | null;
   error_code: string | null;
@@ -192,6 +195,7 @@ export interface SubmissionAttemptRow {
   error_detail: string | null;
   screenshots: string[];
   html_snapshot_path: string | null;
+  audit_events: SubmissionAuditEvent[];
 }
 
 export interface CaptchaRelayRow {

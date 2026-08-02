@@ -71,6 +71,7 @@ export type SubmissionJobStatus =
   | "awaiting_captcha"
   | "needs_manual"
   | "submitted"
+  | "dry_run_completed"
   | "failed"
   | "cancelled";
 
@@ -84,7 +85,20 @@ export type SubmissionErrorCode =
   | "boards_full"
   | "already_submitted"
   | "validation_rejected"
+  | "audit_incomplete"
+  | "dry_run_safety_violation"
   | "unknown";
+
+/** 제출 리허설의 단계별 감사 증적. 경로는 private audit Storage 내부 경로다. */
+export interface SubmissionAuditEvent {
+  step: string;
+  /** query string을 제거한 페이지 URL */
+  url: string;
+  /** 증적을 캡처한 UTC ISO 시각 */
+  capturedAt: string;
+  screenshotPath: string | null;
+  htmlPath: string | null;
+}
 
 export interface BoardPreference {
   boardSiteId: string;

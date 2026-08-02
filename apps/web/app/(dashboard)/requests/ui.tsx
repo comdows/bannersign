@@ -41,6 +41,8 @@ export function RequestForm({ municipalities, profiles, credentials, designs, bo
   const [evaluating, setEvaluating] = useState(false);
   const [evalError, setEvalError] = useState<string | null>(null);
 
+  const selectedMunicipality = municipalities.find((m) => m.id === muniId);
+  const dryRunOnly = selectedMunicipality?.status === "beta";
   const muniCredentials = credentials.filter((c) => c.municipality_id === muniId);
   const muniBoards = boards.filter((b) => b.municipality_id === muniId);
   const mapBoards: MapBoard[] = muniBoards.filter((b): b is BoardOption & MapBoard => b.lat != null && b.lng != null);
@@ -79,7 +81,8 @@ export function RequestForm({ municipalities, profiles, credentials, designs, bo
       credentialId: credentialId || null,
       designId,
       boardIds: selectedIds,
-      recurrence,
+      recurrence: dryRunOnly ? "once" : recurrence,
+      dryRunOnly,
     })
       .then((r) => {
         if (!ignore) setReadiness(r);
@@ -97,7 +100,7 @@ export function RequestForm({ municipalities, profiles, credentials, designs, bo
     return () => {
       ignore = true;
     };
-  }, [muniId, profileId, credentialId, designId, selectedIds, recurrence]);
+  }, [muniId, profileId, credentialId, designId, selectedIds, recurrence, dryRunOnly]);
 
   const ready = readiness?.ready === true;
   const muniInactive = readiness?.issues.some(
@@ -238,13 +241,24 @@ export function RequestForm({ municipalities, profiles, credentials, designs, bo
         ))}
       </fieldset>
 
-      <label>
-        반복
-        <select name="recurrence" value={recurrence} onChange={(e) => setRecurrence(e.target.value)}>
-          <option value="monthly">매월 자동 신청</option>
-          <option value="once">다음 1회만</option>
-        </select>
-      </label>
+      <input type="hidden" name="dry_run_only" value={String(dryRunOnly)} />
+      {dryRunOnly ? (
+        <>
+          <input type="hidden" name="recurrence" value="once" />
+          <p style={{ fontSize: 13, color: "#8a6d00", background: "#fff8e1", padding: 8, borderRadius: 6 }}>
+            <strong>리허설 전용:</strong> 다음 창구에서 1회만 실행하며, 최종 제출 요청은 worker와 adapter에서
+            강제로 차단합니다.
+          </p>
+        </>
+      ) : (
+        <label>
+          반복
+          <select name="recurrence" value={recurrence} onChange={(e) => setRecurrence(e.target.value)}>
+            <option value="monthly">매월 자동 신청</option>
+            <option value="once">다음 1회만</option>
+          </select>
+        </label>
+      )}
 
       {/* 준비도 체크리스트 */}
       <ReadinessChecklist readiness={readiness} evaluating={evaluating} />
@@ -263,7 +277,7 @@ export function RequestForm({ municipalities, profiles, credentials, designs, bo
       )}
 
       <button type="submit" disabled={pending || evaluating || !ready}>
-        {pending ? "등록 중..." : ready ? "자동 신청 등록" : "준비 조건 미충족"}
+        {pending ? "등록 중..." : ready ? (dryRunOnly ? "1회 리허설 예약" : "자동 신청 등록") : "준비 조건 미충족"}
       </button>
       {message && <p style={{ fontSize: 13 }}>{message}</p>}
     </form>

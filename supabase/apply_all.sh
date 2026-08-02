@@ -18,6 +18,7 @@ FILES=(
   "migrations/0003_request_readiness.sql"           # 자동 신청 준비도 게이트(트리거/RPC/once 만료)
   "migrations/0004_window_schedule_identity.sql"    # 창구 논리 식별자 unique(muni, target_period_start)
   "migrations/0005_credential_precheck.sql"         # D-1 계정 사전 점검 기록 unique(window, credential)
+  "migrations/0006_s05_dry_run_rehearsal.sql"       # S05 1회 dry-run 요청/완료 상태/구조화 감사 증적
   "seed.sql"                   # 화성/오산/시흥 municipalities + specs
   "seed_boards_hwaseong.sql"   # 화성 게시대 197곳
   "seed_directory.sql"         # 어댑터 미구현 지자체 디렉토리(disabled)

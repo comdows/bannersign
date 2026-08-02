@@ -25,6 +25,7 @@ const selectionSchema = z.object({
   designId: z.string().uuid("시안을 선택하세요."),
   boardIds: z.array(z.string().uuid()),
   recurrence: z.enum(["once", "monthly"]),
+  dryRunOnly: z.boolean().default(false),
 });
 export type RequestSelection = z.infer<typeof selectionSchema>;
 
@@ -36,6 +37,7 @@ function parseSelection(raw: {
   designId: string;
   boardIds: string[];
   recurrence: string;
+  dryRunOnly?: boolean;
 }): { ok: true; value: RequestSelection } | { ok: false; message: string } {
   const parsed = selectionSchema.safeParse({
     municipalityId: raw.municipalityId,
@@ -43,7 +45,8 @@ function parseSelection(raw: {
     credentialId: raw.credentialId && raw.credentialId.length > 0 ? raw.credentialId : null,
     designId: raw.designId,
     boardIds: Array.from(new Set(raw.boardIds.filter(Boolean))),
-    recurrence: raw.recurrence === "once" ? "once" : "monthly",
+    recurrence: raw.dryRunOnly ? "once" : raw.recurrence === "once" ? "once" : "monthly",
+    dryRunOnly: raw.dryRunOnly ?? false,
   });
   if (!parsed.success) {
     return { ok: false, message: parsed.error.issues[0]?.message ?? "입력값이 올바르지 않습니다." };
@@ -125,7 +128,7 @@ async function loadReadiness(
     selectedBoardIds: sel.boardIds,
     boards: boards ?? [],
   };
-  return checkRequestReadiness(input);
+  return checkRequestReadiness(input, sel.dryRunOnly ? "dry_run" : "live");
 }
 
 /** 폼 선택값에 대한 준비도 평가 (RequestForm 이 선택 변경마다 호출) */
@@ -136,6 +139,7 @@ export async function evaluateRequestReadiness(raw: {
   designId: string;
   boardIds: string[];
   recurrence: string;
+  dryRunOnly: boolean;
 }): Promise<ReadinessResult> {
   const tenantId = await currentTenantId();
   if (!tenantId) {
@@ -174,6 +178,7 @@ export async function createRequest(formData: FormData): Promise<RequestActionRe
     designId: String(formData.get("design_id") ?? ""),
     boardIds: formData.getAll("board_ids").map(String),
     recurrence: String(formData.get("recurrence") ?? "monthly"),
+    dryRunOnly: String(formData.get("dry_run_only") ?? "") === "true",
   });
   if (!parsed.ok) return { ok: false, message: parsed.message };
   const sel = parsed.value;
@@ -206,6 +211,7 @@ export async function createRequest(formData: FormData): Promise<RequestActionRe
     p_credential_id: sel.credentialId,
     p_board_preferences: sel.boardIds.map((id, i) => ({ boardSiteId: id, priority: i + 1 })),
     p_recurrence: sel.recurrence,
+    p_dry_run_only: sel.dryRunOnly,
   });
   if (error) {
     // DB 가 준비도로 막았다면(레이스 등) 최신 체크리스트를 다시 실어 보낸다.
@@ -221,7 +227,12 @@ export async function createRequest(formData: FormData): Promise<RequestActionRe
   }
 
   revalidatePath("/requests");
-  return { ok: true, message: "자동 신청이 등록되었습니다. 다음 접수 기간에 자동으로 제출됩니다." };
+  return {
+    ok: true,
+    message: sel.dryRunOnly
+      ? "1회 리허설이 예약되었습니다. 창구가 열려 있으면 다음 worker 실행에서 시작됩니다."
+      : "자동 신청이 등록되었습니다. 다음 접수 기간에 자동으로 제출됩니다.",
+  };
 }
 
 /**

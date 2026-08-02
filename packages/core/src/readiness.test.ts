@@ -4,6 +4,7 @@ import {
   expiresAfterFirstJob,
   type ReadinessInput,
   type ReadinessIssueCode,
+  type ReadinessMode,
 } from "./readiness.js";
 
 const TENANT = "11111111-1111-1111-1111-111111111111";
@@ -28,8 +29,8 @@ function ready(): ReadinessInput {
   };
 }
 
-function codes(input: ReadinessInput): ReadinessIssueCode[] {
-  return checkRequestReadiness(input).issues.map((i) => i.code);
+function codes(input: ReadinessInput, mode?: ReadinessMode): ReadinessIssueCode[] {
+  return checkRequestReadiness(input, mode).issues.map((i) => i.code);
 }
 
 describe("checkRequestReadiness — 정상", () => {
@@ -76,6 +77,33 @@ describe("checkRequestReadiness — 지자체 상태", () => {
     const issue = checkRequestReadiness(input).issues.find((i) => i.code === "municipality_inactive");
     expect(issue?.waitKo).toBeTruthy();
     expect(issue?.resolution).toBeUndefined();
+  });
+
+  it("mode 기본값은 live 이므로 beta 를 허용하지 않는다", () => {
+    const input = ready();
+    input.municipality = { status: "beta", capabilities: { autoSubmit: true } };
+    expect(codes(input)).toContain("municipality_inactive");
+  });
+
+  it.each(["active", "beta"])("dry_run 은 status=%s 를 허용한다", (status) => {
+    const input = ready();
+    input.municipality = { status, capabilities: { autoSubmit: true } };
+    expect(checkRequestReadiness(input, "dry_run")).toEqual({ ready: true, issues: [] });
+  });
+
+  it.each(["broken", "disabled", "unknown"])(
+    "dry_run 도 status=%s 를 municipality_inactive 로 차단한다",
+    (status) => {
+      const input = ready();
+      input.municipality = { status, capabilities: { autoSubmit: true } };
+      expect(codes(input, "dry_run")).toContain("municipality_inactive");
+    },
+  );
+
+  it("dry_run 도 autoSubmit=false 를 차단한다", () => {
+    const input = ready();
+    input.municipality = { status: "beta", capabilities: { autoSubmit: false } };
+    expect(codes(input, "dry_run")).toContain("autosubmit_unavailable");
   });
 });
 

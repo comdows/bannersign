@@ -5,6 +5,9 @@ import {
   AdapterError,
   createAuditTrail,
   getAdapter,
+  validateDryRunAuditEvidence,
+  type AuditEvidence,
+  type AuditTrail,
   type SubmissionInput,
   type SubmitContext,
 } from "@youni/adapters";
@@ -25,7 +28,7 @@ import type {
   SubmissionJobRow,
 } from "@youni/db";
 import type { Job } from "bullmq";
-import { chromium } from "playwright";
+import { chromium, type Browser } from "playwright";
 import { submitJobPayloadSchema } from "@youni/core";
 import { storageAuditSink } from "../audit.js";
 import { relayCaptcha } from "../captcha.js";
@@ -33,6 +36,12 @@ import { db } from "../db.js";
 import { env } from "../env.js";
 import { logger } from "../logger.js";
 import { getQueue } from "../queues.js";
+import {
+  effectiveDryRun,
+  failureTerminalStatus,
+  municipalityRunBlock,
+  windowRunTiming,
+} from "../rehearsal.js";
 
 /** 오류 유형별 재시도 정책 (지수 백오프는 delay 재큐잉으로 구현) */
 const RETRY_DELAYS_MS: Partial<Record<SubmissionErrorCode, number[]>> = {
@@ -64,34 +73,87 @@ export async function processSubmitJob(bullJob: Job): Promise<void> {
     return;
   }
 
+  const runDry = effectiveDryRun(
+    env.SUBMIT_DRY_RUN_DEFAULT,
+    ctx.request.dry_run_only,
+    job.dry_run,
+    payload.dryRun,
+  );
+
   const attemptNo = await nextAttemptNo(jobId);
   const screenshots: string[] = [];
-  const { data: attempt } = await db()
+  const { data: attempt, error: attemptError } = await db()
     .from("submission_attempts")
     .insert({ job_id: jobId, tenant_id: job.tenant_id, attempt_no: attemptNo, screenshots: [] })
     .select("id")
     .single();
+  if (attemptError || !attempt) {
+    const detail = `제출 감사 시도 레코드를 생성할 수 없습니다: ${attemptError?.message ?? "unknown"}`;
+    await markJob(jobId, {
+      status: "needs_manual",
+      dry_run: runDry,
+      error_code: "audit_incomplete",
+      error_detail: detail,
+    });
+    await notify(job.tenant_id, "needs_manual", jobId, { reason: detail });
+    return;
+  }
 
-  await markJob(jobId, { status: "running" });
+  await markJob(jobId, { status: "running", dry_run: runDry });
 
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
-  const sink = storageAuditSink(job.tenant_id, jobId, attemptNo, (p) => screenshots.push(p));
-  const audit = createAuditTrail(page, sink);
-  const tmpDir = await mkdtemp(join(tmpdir(), "design-"));
+  const timing = windowRunTiming(ctx.window.opens_at, ctx.window.closes_at, new Date());
+  if (timing !== "open") {
+    const beforeOpen = timing === "before";
+    await handleFailure(
+      job,
+      new AdapterError(
+        beforeOpen ? "not_open_yet" : "validation_rejected",
+        beforeOpen
+          ? "접수 창구가 아직 열리지 않았습니다."
+          : `접수 창구가 닫혔거나 시각 정보가 유효하지 않습니다 (${timing}).`,
+        beforeOpen,
+      ),
+      attempt.id,
+      undefined,
+      [],
+      [],
+      runDry,
+    );
+    return;
+  }
 
-  const submitCtx: SubmitContext = {
-    page,
-    audit,
-    log: (msg) => logger.info({ jobId }, msg),
-    dryRun: job.dry_run || payload.dryRun,
-    onCaptcha: (img) => relayCaptcha(job.tenant_id, jobId, img),
-  };
-
+  let browser: Browser | undefined;
+  let audit: AuditTrail | undefined;
+  let tmpDir: string | undefined;
   try {
+    browser = await chromium.launch({ headless: true });
+    const page = await browser.newPage();
+    const sink = storageAuditSink(job.tenant_id, jobId, attemptNo, (p) => screenshots.push(p));
+    audit = createAuditTrail(page, sink);
+    tmpDir = await mkdtemp(join(tmpdir(), "design-"));
+
+    const submitCtx: SubmitContext = {
+      page,
+      audit,
+      log: (msg) => logger.info({ jobId }, msg),
+      dryRun: runDry,
+      onCaptcha: (img) => relayCaptcha(job.tenant_id, jobId, img),
+    };
+
     const adapter = getAdapter(ctx.municipality.adapter_key);
-    if (!adapter.meta.autoSubmit || !ctx.municipality.capabilities.autoSubmit) {
-      throw new AdapterError("unknown", "auto submit disabled for this municipality", false);
+    const runBlock = municipalityRunBlock(
+      ctx.municipality.status,
+      runDry,
+      adapter.meta.autoSubmit && ctx.municipality.capabilities.autoSubmit,
+    );
+    if (runBlock) {
+      throw new AdapterError(
+        runBlock,
+        runBlock === "dry_run_safety_violation"
+          ? "beta 지자체는 dry-run 리허설로만 실행할 수 있습니다."
+          : `municipality ${ctx.municipality.status} is not runnable or auto submit is disabled`,
+        false,
+      );
     }
 
     // 시안 다운로드 → 임시 파일 (제출 폼 업로드용)
@@ -129,39 +191,115 @@ export async function processSubmitJob(bullJob: Job): Promise<void> {
     };
 
     const receipt = await adapter.submitApplication(submitCtx, input);
+    if (receipt.dryRun !== runDry) {
+      throw new AdapterError(
+        "dry_run_safety_violation",
+        "adapter 결과의 dry-run 모드가 worker의 안전 모드와 일치하지 않습니다.",
+        false,
+      );
+    }
+
+    const selectedBoardSiteId = ctx.boardPrefs.find(
+      (pref) => pref.externalId === receipt.selectedBoardExternalId,
+    )?.boardSiteId;
+
+    if (receipt.dryRun) {
+      const evidenceValidation = validateDryRunAuditEvidence(audit.evidence);
+      if (!evidenceValidation.valid || !selectedBoardSiteId) {
+        const missing = evidenceValidation.missingSteps.join(", ");
+        throw new AdapterError(
+          "audit_incomplete",
+          [
+            missing ? `필수 리허설 증적 누락: ${missing}` : null,
+            selectedBoardSiteId ? null : "선택 게시대 식별 증적 누락",
+          ]
+            .filter(Boolean)
+            .join("; "),
+          false,
+        );
+      }
+
+      const completedAt = new Date().toISOString();
+      await finishAttempt(
+        attempt.id,
+        "dry_run_completed",
+        audit.steps.at(-1),
+        screenshots,
+        audit.evidence,
+      );
+      await markJob(jobId, {
+        status: "dry_run_completed",
+        dry_run: true,
+        dry_run_completed_at: completedAt,
+        submitted_at: null,
+        receipt_no: null,
+        selected_board_site_id: selectedBoardSiteId,
+        error_code: null,
+        error_detail: null,
+      });
+      await notify(job.tenant_id, "dry_run_completed", jobId, {
+        dryRun: true,
+        board: receipt.selectedBoardExternalId,
+        completedAt,
+      });
+      return;
+    }
 
     await markJob(jobId, {
-      status: receipt.dryRun ? "needs_manual" : "submitted",
+      status: "submitted",
       submitted_at: receipt.submittedAt,
       receipt_no: receipt.receiptNo ?? null,
+      selected_board_site_id: selectedBoardSiteId ?? null,
       error_code: null,
-      error_detail: receipt.dryRun ? "dry-run 완료 (실제 제출 안 됨)" : null,
+      error_detail: null,
     });
-    await finishAttempt(attempt?.id, "ok", audit.steps.at(-1), screenshots);
-    await notify(job.tenant_id, receipt.dryRun ? "needs_manual" : "submit_ok", jobId, {
+    await finishAttempt(attempt.id, "ok", audit.steps.at(-1), screenshots, audit.evidence);
+    await notify(job.tenant_id, "submit_ok", jobId, {
       receiptNo: receipt.receiptNo,
-      dryRun: receipt.dryRun,
+      dryRun: false,
       board: receipt.selectedBoardExternalId,
     });
   } catch (err) {
-    await handleFailure(job, err, attempt?.id, audit.steps.at(-1), screenshots);
+    await handleFailure(
+      job,
+      err,
+      attempt.id,
+      audit?.steps.at(-1),
+      screenshots,
+      audit?.evidence ?? [],
+      runDry,
+    );
   } finally {
-    await browser.close().catch(() => {});
-    await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+    await browser?.close().catch(() => {});
+    if (tmpDir) await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
   }
 }
 
 async function handleFailure(
   job: SubmissionJobRow,
   err: unknown,
-  attemptId: string | undefined,
+  attemptId: string,
   lastStep: string | undefined,
   screenshots: string[],
+  auditEvents: readonly AuditEvidence[],
+  runDry: boolean,
 ): Promise<void> {
   const code: SubmissionErrorCode = err instanceof AdapterError ? err.code : "unknown";
   const detail = err instanceof Error ? err.message : String(err);
   logger.warn({ jobId: job.id, code, detail }, "submit attempt failed");
-  await finishAttempt(attemptId, code, lastStep, screenshots, detail);
+  try {
+    await finishAttempt(attemptId, code, lastStep, screenshots, auditEvents, detail);
+  } catch (persistenceError) {
+    const persistenceDetail =
+      persistenceError instanceof Error ? persistenceError.message : String(persistenceError);
+    await markJob(job.id, {
+      status: "needs_manual",
+      error_code: "audit_incomplete",
+      error_detail: persistenceDetail,
+    });
+    await notify(job.tenant_id, "needs_manual", job.id, { reason: persistenceDetail });
+    return;
+  }
 
   const attemptNo = await nextAttemptNo(job.id);
   const delays = RETRY_DELAYS_MS[code];
@@ -199,22 +337,29 @@ async function handleFailure(
     }
   }
 
-  const terminal = code === "already_submitted" ? "submitted" : windowStillOpen ? "needs_manual" : "failed";
+  const terminal = failureTerminalStatus(code, windowStillOpen, runDry);
   await markJob(job.id, { status: terminal, error_code: code, error_detail: detail });
-  await notify(job.tenant_id, terminal === "needs_manual" ? "needs_manual" : "submit_fail", job.id, {
-    code,
-    detail,
-  });
+  const notificationType =
+    terminal === "needs_manual" ? "needs_manual" : terminal === "submitted" ? "submit_ok" : "submit_fail";
+  await notify(job.tenant_id, notificationType, job.id, { code, detail });
 }
 
 // ---------- helpers ----------
 
 interface JobContext {
+  request: ApplicationRequestRow;
   municipality: MunicipalityRow;
   profile: AdvertiserProfileRow;
   credential: SiteCredentialRow;
   design: DesignRow;
-  window: { id: string; municipality_id: string; target_period_start: string; target_period_end: string };
+  window: {
+    id: string;
+    municipality_id: string;
+    opens_at: string;
+    closes_at: string;
+    target_period_start: string;
+    target_period_end: string;
+  };
   boardPrefs: SubmissionInput["boardPreferences"];
 }
 
@@ -233,6 +378,8 @@ async function loadJobContext(
     single<{
       id: string;
       municipality_id: string;
+      opens_at: string;
+      closes_at: string;
       target_period_start: string;
       target_period_end: string;
     }>("application_windows", job.window_id),
@@ -279,6 +426,7 @@ async function loadJobContext(
   }
 
   return {
+    request: req,
     municipality: muni,
     profile,
     credential,
@@ -309,7 +457,10 @@ async function loadRequest(id: string): Promise<ApplicationRequestRow | null> {
 
 async function markJob(id: string, patch: Record<string, unknown>): Promise<void> {
   const { error } = await db().from("submission_jobs").update(patch).eq("id", id);
-  if (error) logger.error({ error, id, patch }, "job update failed");
+  if (error) {
+    logger.error({ error, id, patch }, "job update failed");
+    throw new Error(`submission job update failed: ${error.message}`);
+  }
 }
 
 async function nextAttemptNo(jobId: string): Promise<number> {
@@ -321,23 +472,28 @@ async function nextAttemptNo(jobId: string): Promise<number> {
 }
 
 async function finishAttempt(
-  attemptId: string | undefined,
+  attemptId: string,
   outcome: string,
   stepReached: string | undefined,
   screenshots: string[],
+  auditEvents: readonly AuditEvidence[],
   errorDetail?: string,
 ): Promise<void> {
-  if (!attemptId) return;
-  await db()
+  const { error } = await db()
     .from("submission_attempts")
     .update({
       ended_at: new Date().toISOString(),
       outcome,
       step_reached: stepReached ?? null,
       screenshots,
+      audit_events: auditEvents,
       error_detail: errorDetail ?? null,
     })
     .eq("id", attemptId);
+  if (error) {
+    logger.error({ error, attemptId, outcome }, "submission attempt update failed");
+    throw new Error(`submission attempt update failed: ${error.message}`);
+  }
 }
 
 async function isWindowOpen(windowId: string): Promise<boolean> {

@@ -38,7 +38,8 @@ export default async function RequestsPage() {
       <h1>자동 신청 등록</h1>
       <p style={{ fontSize: 14, color: "#555" }}>
         한 번 등록해두면 매월 신청 창구가 열릴 때 자동으로 제출됩니다(추첨 당첨을 보장하지는
-        않습니다). 진행 과정은 신청 현황의 타임라인에서 스크린샷으로 확인할 수 있습니다.
+        않습니다). beta 지자체는 실제 제출 없이 다음 1회 리허설만 예약할 수 있습니다. 진행 과정은
+        신청 현황의 타임라인에서 스크린샷으로 확인할 수 있습니다.
       </p>
       {missing.length > 0 ? (
         <div className="card" style={{ borderLeft: "4px solid #c9a227" }}>
@@ -83,7 +84,7 @@ export default async function RequestsPage() {
                 <td>{(r.municipalities as unknown as { name: string } | null)?.name}</td>
                 <td>{(r.advertiser_profiles as unknown as { business_name: string } | null)?.business_name}</td>
                 <td>{(r.designs as unknown as { file_name: string } | null)?.file_name}</td>
-                <td>{r.recurrence === "monthly" ? "매월" : "1회"}</td>
+                <td>{r.dry_run_only ? "1회 리허설" : r.recurrence === "monthly" ? "매월" : "1회"}</td>
                 <td>
                   <span className="badge">{r.status}</span>
                 </td>
