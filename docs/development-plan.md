@@ -1,6 +1,6 @@
 # 유니(youni) 세부 개발 계획서
 
-> 문서 버전: v1.2 · 기준일: 2026-08-02 · 실행 단위: 1인 기준 0.5~2일의 검증 가능한 수직 슬라이스
+> 문서 버전: v1.3 · 기준일: 2026-08-05 · 실행 단위: 1인 기준 0.5~2일의 검증 가능한 수직 슬라이스
 
 ## 1. 목적
 
@@ -17,26 +17,30 @@
 | 영역 | 상태 | 현재 근거 | 출시 전 남은 일 |
 |---|---|---|---|
 | 인증 | 구현 | Supabase 매직링크, 콜백, 보호 미들웨어 | 오류 추적, 세션 E2E |
-| 테넌시 | 부분 구현 | 테넌트/멤버십 RLS, 생성 RPC, S01 복합 FK·트리거·worker 방어 | S01 SQL 실DB 검증, 테넌트 선택 정책 |
+| 테넌시 | 코드·migration 파일 완료 | 테넌트/멤버십 RLS, 생성 RPC, S01 복합 FK·트리거·worker 방어, 0002 SQL 회귀 CI 통과 | 운영 계약 확인·멀티테넌트 E2E, 테넌트 선택 정책 |
 | 사업자/계정 | 부분 구현 | 프로필 CRUD 일부, 비밀번호 AES-256-GCM 저장, S04 D-1 로그인 사전 점검 코드 | 수정/삭제, 실계정 로그인 검증(실사이트) |
 | 시안 | 부분 구현 | Storage 업로드, 이미지 크기, AI 규격 검증, S02 최신 검증 제출 게이트 | MIME/확장자 강화, 비용 제어 |
-| 자동 신청 | 코드 완료 | S01 관계 무결성, S02 준비도 게이트, S05 beta 전용 1회 리허설 예약·실제 제출 차단 | 실계정 리허설, 상태 변경 UX |
-| 창구/스케줄러 | 코드 완료 | S02 실행 직전 준비도, S03 일정 동기화, S04 D-1 점검, S05 dry-run 한정 열린 창구 catch-up | 실사이트 관측·실계정 로그인, 운영자 검토 UI |
+| 자동 신청 | 🟡 코드 준비 | S01 관계 무결성, S02 준비도 게이트, S05 beta 전용 1회 리허설 예약·실제 제출 차단 | 원자적 잡 claim·성공 precheck 강제, 실계정 리허설, 상태 변경 UX |
+| 창구/스케줄러 | 🟡 코드 준비 | S02 실행 직전 준비도, S03 일정 동기화, S04 D-1 점검, S05 dry-run 한정 열린 창구 catch-up | 변경된 창구 시각의 기존 잡 재예약, 실사이트 관측, 운영자 검토 UI |
 | 화성 어댑터 | 코드 준비 완료 | 게시대/일정 파서, 로그인, 최종 저장 요청 차단 dry-run 흐름 | Fly 실가동 후 본인 실계정 리허설, 최종 성공 신호 검증 |
-| 감사 증적 | 코드 준비 완료 | S05 5단계 스크린샷·HTML·URL·시각과 전용 완료 상태 | 실사이트 증적 검수, 보존 정책 |
+| 감사 증적 | 코드 준비 완료 | S05 5단계 URL·시각·스크린샷, 선택 HTML과 전용 완료 상태 | 실사이트 증적 검수, 보존 정책 |
 | 재시도 | 부분 구현 | 오류 코드별 지연 재큐잉 | 상태 머신 강제, 원자성/경쟁 조건 테스트 |
 | 캡차 릴레이 | 구현 골격 | Storage → DB → 웹 답변 → worker 폴링 | 실제 캡차 사이트 검증, 알림 없이는 사용 불가 |
-| 알림 | 미구현 | DB 큐는 있으나 로그 후 `sent` 처리하는 stub | 실제 이메일 발송, 실패/재시도/공급자 ID |
-| 결과 수집 | 미구현에 가까움 | 공개 컨텍스트 파서 골격 | uriad 계정 로그인 후 마이페이지 수집 |
+| 알림 | 🟡 1차 코드 완료 | Resend REST, 8종 템플릿, 429/5xx·네트워크 재시도, 키 미설정 스텁 폴백 | API 키·발신 설정·실수신, dry-run 전용 템플릿, 공급자 ID/시도/오류 영속화 |
+| 결과 수집 | 🟡 1차 코드 완료 | credential별 로그인·마이페이지 파싱·exact/fuzzy 매칭 | 부정 결과 판정·대상 기간·전체 credential 종료 조건 보완, fuzzy 검토 전 알림 차단, 실측·멱등성 |
 | 관리자 운영 | 미구현 | DB에는 attempts/crawl_runs/results 존재 | 운영 화면, 재시도, 결과 수동 매칭 |
-| 자동 테스트 | 부분 구현 | core·adapter·worker 회귀 테스트와 PR SQL 회귀 job | 실사이트 E2E, 운영 RLS 검증 |
-| 배포 | 문서/설정 존재 | Vercel/Fly/Supabase 가이드, 기존 verify와 별도 SQL CI | Fly 실가동, 모니터링, 복구 연습 |
+| 자동 테스트 | 부분 구현 | core·adapter·worker 회귀 테스트와 PR SQL 회귀 job(0002~0006 통과) | 미해결 리뷰 회귀 보완, 실사이트 E2E, 운영 RLS 검증 |
+| 배포 | 🟡 web만 공개 가동 | 공개 Vercel web HTTP 200, Supabase 운영 적용 보고, Upstash 생성 기존 기록, Fly 설정 | 최신 기본 커밋의 Production 배포 확인, Redis 운영 연결 재확인, Fly 결제수단·첫 배포, 모니터링·복구 연습 |
 
-### 2.1 2026-08-02 검증 기준
+### 2.1 2026-08-05 검증 기준
 
 - 기존 `corepack pnpm verify`는 build → typecheck → lint → test 전체를 계속 검사한다.
 - PR의 별도 `sql-regression` job은 Supabase CLI 2.111.0과 로컬 DB를 사용해 모든 migration·seed를
   적용하고 `supabase/tests/*.sql`(0002~0006)을 실행한다.
+- CI의 `verify`는 모든 PR과 수동 실행을 지원하고, 같은 PR의 이전 실행을 취소한다.
+  `sql-regression`은 PR에서만 실행된다. 현재 기본 브랜치 구성은
+  PR #6에서 push-to-main을 제거해 병합 직후 동일 커밋을 다시 검증하던 중복 실행을 없앴다.
+  별도 `main` 브랜치는 아직 이전 workflow를 유지하므로 기본 브랜치와 동기화하기 전에는 같은 상태로 보지 않는다.
 - S05는 core·adapter·worker·web 테스트에서 beta/live 게이트, dry-run 모드 합성, 열린 창구 catch-up,
   최종 저장 요청 차단, 5단계 증적과 완료/실패 DB 패치를 검증한다.
 - 실제 Supabase 운영 프로젝트·Redis·Fly·Playwright 실사이트 통합은 자격정보와 외부 창구가 필요해
@@ -47,41 +51,43 @@
 | 슬라이스 | 상태 | 검증/남은 게이트 |
 |---|---|---|
 | S00 검증 기준선 | 완료 | `corepack pnpm verify` 통과 |
-| S01 참조 무결성 | 코드·리뷰 완료 | TS 14개 회귀 테스트 통과, SQL 회귀 테스트는 Docker/Postgres 환경에서 실행 대기 |
-| S02 신청 준비도 | 코드·리뷰 완료 | UI·DB·scheduler 게이트와 S02R fail-closed 보완 완료, SQL 회귀 테스트는 Docker/Postgres 환경에서 실행 대기 |
-| S03 일정 동기화 | 코드·리뷰 완료 | 대상 게시기간 단일 창구, `manual > crawled > rule`, 위험 변경 수동 검토·CAS 보완 완료; SQL 회귀·실사이트 crawl 대기 |
-| S04 계정 사전 점검 | 코드·테스트 완료 | 가짜 어댑터 기반 자동 테스트 59개 통과(로그인 성공/실패, 계정 공유 1회 로그인, 실패 격리, 회수 소진 fail-closed, 알림 멱등, 제출 상태 가드). 0005 SQL 회귀 테스트와 **실계정·실사이트 로그인 검증은 대기** |
-| S05 화성 dry-run | 코드 준비 완료(병합 시) | 대시보드 1회 리허설, beta 실 제출 차단, 전용 완료 상태와 5단계 증적을 구현. **Fly 실가동·본인 실계정 리허설과 마이페이지 미신청 확인은 대기** |
+| S01 참조 무결성 | 병합·SQL CI 완료 | TS 회귀와 0002 SQL 회귀 통과. 운영 멀티테넌트 E2E는 대기 |
+| S02 신청 준비도 | 병합·SQL CI 완료 | UI·DB·scheduler 게이트와 S02R fail-closed, 0003 SQL 회귀 통과 |
+| S03 일정 동기화 | 🟡 병합·SQL CI 완료 | 0004 SQL 회귀 통과. 창구 시각 변경 시 기존 queued/BullMQ 잡 재예약 P1과 실사이트 crawl은 대기 |
+| S04 계정 사전 점검 | 🟡 병합·SQL CI 완료 | 자동 테스트와 0005 SQL 회귀 통과. 제출 시작 전 성공 precheck 확인·queued 잡 원자적 claim P1, **실계정·실사이트 로그인 검증은 대기** |
+| S05 화성 dry-run | 🟡 코드 준비 완료 | PR #7 병합, 0006 SQL 회귀 통과. **Fly 실가동·본인 실계정 리허설·마이페이지 미신청 확인은 대기**. 이메일 템플릿은 비차단 S07 후속 |
 
-## 3. 상용화 차단 항목
+## 3. 상용화 차단 항목과 해소 현황
 
-다음 항목은 기능 추가보다 먼저 해결해야 한다.
+다음 항목은 기능 추가보다 먼저 해결해야 한다. 병합 여부와 운영 검증 완료를 구분한다.
 
-### B1. 테넌트 간 참조 무결성
+### B1. 테넌트 간 참조 무결성 — ✅ 코드·migration 파일 완료, 운영 계약·E2E 대기
 
-`application_requests`의 `tenant_id`는 RLS로 제한되지만 `profile_id`, `credential_id`, `design_id`가
-같은 테넌트인지 DB 제약으로 보장하지 않는다. worker는 service role로 이 참조를 읽으므로,
-추측한 UUID가 들어가면 다른 테넌트 데이터를 조합할 위험이 있다.
+`0002_tenant_reference_integrity.sql`의 복합 FK·검증 trigger와 worker 방어가 병합됐고 로컬
+Supabase SQL 회귀를 통과했다. 운영 DB에서 사용자 A/B를 이용한 교차 테넌트 E2E는 아직 남았다.
 
-### B2. 알림이 실제로 발송되지 않음
+### B2. 실제 이메일 전달 보증 부족 — 🟡 1차 코드 완료
 
-`apps/worker/src/processors/notify.ts`는 pending 알림을 로그만 남기고 `sent`로 바꾼다.
-캡차, 사전 점검 실패, 제출 실패를 사용자가 알 수 없으므로 무인 운영이 불가능하다.
+Resend REST 발송과 기본 재시도·8종 템플릿은 구현됐다. 그러나 Fly에 API 키·발신 설정을 넣은
+실수신, `dry_run_completed` 전용 템플릿, provider ID·시도 횟수·오류·backoff/dead-letter 기록은
+아직 없다. 이 상태로는 무인 운영 완료로 볼 수 없다.
 
-### B3. 결과 수집이 인증 없이 실행됨
+### B3. 결과 수집 정확성·완결성 부족 — 🟡 인증 경로 코드 완료
 
-uriad 결과는 사용자 마이페이지에 있지만 현재 결과 잡은 로그인하지 않은 `CrawlContext`로
-`fetchResults`를 호출한다. 정상 사이트에서도 0건이 반환되어 전체 사이클을 닫을 수 없다.
+credential별 로그인과 마이페이지 파싱은 구현됐다. 다만 부정 문구(`미당첨`/`미선정`) 판정 순서,
+대상 창구 기간 필터, 모든 credential 완료 전 `results_out` 방지, fuzzy 운영자 검토 전 알림 차단이
+미해결이다. 실제 발표 결과와 `0008` 멱등성까지 통과해야 완료다.
 
-### B4. 제출 성공을 확정하지 않음
+### B4. 제출 성공을 확정하지 않음 — ⬜ S06
 
 화성 어댑터는 최종 버튼 클릭 후 접수번호가 없어도 `submitted`를 반환한다. 오류 페이지나
 유효성 경고도 성공으로 오인할 수 있다.
 
-### B5. 상태 머신이 저장 경로에서 사용되지 않음
+### B5. 상태 전이·경쟁 조건이 완전히 강제되지 않음 — ⬜ S06
 
-`packages/core/src/stateMachine.ts`는 테스트되지만 worker의 DB update가 이를 호출하지 않는다.
-중복 worker나 늦은 재시도로 상태가 역행할 수 있다.
+`packages/core/src/stateMachine.ts`는 테스트되지만 모든 worker DB update가 원자적 전이를 강제하지
+않는다. queued 잡 claim과 precheck 경쟁, 외부 제출 성공 뒤 attempt 저장 실패 시 `submitted` 상태
+보존을 포함해 S06에서 해결해야 한다.
 
 ## 4. 개발 운영 규칙
 
@@ -213,13 +219,14 @@ flowchart TD
 
 - 예상: 1~1.5일
 - 사용자 가치: 잘못된 정적 일정 때문에 신청 시점을 놓치지 않는다.
-- 현재 문제:
-  - crawl payload는 `schedule/spec`을 허용하지만 processor는 `boards/health`만 처리한다.
-  - 스케줄러는 DB 정적 `window_rule`만으로 창구를 만든다.
-- 변경 후보:
-  - `apps/worker/src/processors/crawl.ts`
-  - `application_windows`의 crawled upsert 및 출처 우선순위
-  - schedule crawl 주기와 diff 기록
+- 구현 결과:
+  - `apps/worker/src/processors/crawl.ts`가 `schedule/spec`을 처리하고 일정 diff를 기록한다.
+  - 대상 게시기간을 창구 논리 키로 사용하고 `manual > crawled > rule` 출처 우선순위를 적용한다.
+  - 위험한 일정 변경은 수동 검토 대상으로 격리한다.
+- 남은 보완:
+  - 기존 창구의 `opens_at` 변경 시 이미 queued인 `submission_jobs.queued_for`와 BullMQ delayed job을
+    함께 재예약한다.
+  - 실제 화성 사이트 crawl로 일정 upsert·diff를 운영 검증한다.
 - 규칙:
   - 실측 `source=crawled`가 같은 대상 기간의 rule 값보다 우선한다.
   - 오픈 24시간 이내 일정 변경은 운영자 알림과 수동 확인을 요구한다.
@@ -230,7 +237,7 @@ flowchart TD
   - 날짜 변경은 `crawl_runs.diff_summary`에 이전/신규 값을 남긴다.
 - 선행: S00
 
-### S04. D-1 계정 로그인 사전 점검 — 코드·테스트 완료
+### S04. D-1 계정 로그인 사전 점검 — 1차 코드·SQL CI 완료, P1 보완 대기
 
 - 예상: 1.5~2일
 - 사용자 가치: 창구가 열린 뒤 비밀번호 오류를 발견하는 일을 막는다.
@@ -276,11 +283,14 @@ flowchart TD
   - 회수 시도 소진 시 로그인 0회로 잡 격리 + 계정 상태 불변, 늦게 생긴 잡도 동일 차단
   - 제출 상태 가드(`needs_manual` 자동 제출 금지)
 - 남은 게이트:
-  - `supabase/tests/0005_credential_precheck_test.sql` 실DB 실행(Docker/psql 필요) — 미실행
+  - `supabase/tests/0005_credential_precheck_test.sql`은 로컬 Supabase PR CI를 통과했다. 운영 DB에는
+    파괴적 회귀 테스트를 실행하지 않고 migration 계약과 실제 흐름을 확인한다.
+  - 제출 시작 전에 해당 창구·credential의 성공 precheck가 존재하는지 강제하고 queued 잡을
+    원자적으로 claim한다.
   - 실제 지자체 계정으로 로그인 성공/실패를 확인하는 실사이트 리허설(M1, S05와 함께)
 - 선행: S02
 
-### S05. 화성 실계정 dry-run 리허설 — 코드 준비 완료(병합 시), 실측 대기
+### S05. 화성 실계정 dry-run 리허설 — 코드 준비 완료, 실측 대기
 
 - 예상: 코드 1일 + 실제 창구 1회
 - 사용자 가치: 실제 제출 전에 자동화가 현재 사이트에서 동작함을 증명한다.
@@ -291,6 +301,8 @@ flowchart TD
     하나라도 true면 실행 모드는 끝까지 dry-run이다.
   - 어댑터는 최종 `reserved_save.jsp` 요청을 네트워크 단계에서 차단하고 최종 저장 버튼을 누르지 않는다.
   - migration `0006`은 `dry_run_completed`, 완료 시각, 구조화된 audit events를 저장한다.
+  - 비차단 S07 후속: `dry_run_completed` 전용 사용자 이메일 템플릿이 없어 기본 템플릿으로 폴백한다.
+    외부 제출 성공 뒤 상태 보존 문제는 live 경로를 여는 S06에서 함께 해결한다.
 - dry-run 종료점:
   - 로그인 성공
   - 규약 동의
@@ -335,15 +347,19 @@ flowchart TD
 - 롤백: 지자체 `autoSubmit=false`, 환경 `SUBMIT_DRY_RUN_DEFAULT=true`
 - 선행: S05
 
-### S07. 실제 이메일 알림
+### S07. 실제 이메일 알림 — 1차 코드 완료, 실수신·내구성 보완 대기
 
 - 예상: 1~1.5일
 - 사용자 가치: 사용자가 창구·오류·캡차·결과를 제때 알 수 있다.
-- 변경 후보:
-  - Resend 등 이메일 공급자 adapter
-  - 환경변수, 발신 도메인, 템플릿
-  - `notifications`에 provider ID/attempt/error 컬럼 migration
-  - failed → backoff retry → dead-letter 운영 흐름
+- 구현:
+  - Resend REST 발송, `RESEND_API_KEY` 환경변수, 8종 한글 템플릿
+  - 공급자 429/5xx·네트워크 오류는 pending 유지, 영구 4xx는 failed 처리
+  - 동일 ref의 DB unique 키로 기본 중복 알림 방지
+- 남은 변경:
+  - Fly API 키·발신 설정과 테스트 수신함 실수신
+  - `dry_run_completed` 전용 사용자 템플릿
+  - `0007_notification_delivery.sql`: provider ID, attempts, last_error, next_retry_at
+  - 명시적 backoff와 dead-letter 운영 흐름
 - 수용 기준:
   - 테스트 수신함에서 모든 P0 이벤트를 실제 수신한다.
   - 공급자 성공 응답 뒤에만 `sent`로 표시한다.
@@ -356,16 +372,19 @@ flowchart TD
   - 동일 ref의 중복 발송 방지
 - 선행: S00
 
-### S08. 로그인 기반 결과 수집
+### S08. 로그인 기반 결과 수집 — 1차 코드 완료, 정확성·실측 보완 대기
 
 - 예상: 2일 + 실제 결과 발표 1회
 - 사용자 가치: 제출 후 마이페이지를 다시 방문하지 않아도 결과를 받는다.
-- 변경 후보:
-  - 결과 잡을 submitted job/credential 단위로 실행
-  - credential 복호화와 adapter login
-  - 마이페이지 결과 fixture 및 parser 강화
-  - 결과 멱등키 migration
-  - exact/fuzzy/manual 매칭 분리
+- 구현:
+  - 결과 잡을 submitted job/credential 단위로 묶고 credential 복호화 후 adapter login
+  - uriad 마이페이지 parser와 receipt exact·1잡/1행 fuzzy 매칭
+  - credential별 실패 격리와 로그인 실패 계정 상태 반영
+- 남은 변경:
+  - `미당첨`/`미선정`을 긍정 부분문자열보다 먼저 판정
+  - 대상 창구 기간 필터와 모든 credential 완료 전 `results_out` 차단
+  - fuzzy 결과의 운영자 검토 전 알림 차단
+  - `0008_result_idempotency.sql`과 실제 발표 결과 검증
 - 수용 기준:
   - 각 사용자 세션에서 해당 창구 결과만 수집한다.
   - 접수번호 정확 일치는 자동 확정한다.
@@ -500,9 +519,9 @@ S00~S14와 유료 결제 1건 이후에만 시작한다.
 | 4 | S02 | readiness 도메인 규칙과 등록 차단 |
 | 5 | S02 | 체크리스트 UI와 scheduler 게이트 |
 | 6 | S03 | schedule crawl/upsert/diff |
-| 7~8 | S04 — 코드·테스트 완료 | credential 로그인 precheck와 실패 격리·알림 레코드(실계정 검증은 M1) |
+| 7~8 | S04 — 1차 코드·SQL CI 완료, P1 보완 대기 | credential 로그인 precheck와 실패 격리·알림 레코드(실계정 검증은 M1) |
 | 9 | S07 | 실제 이메일 공급자 연동 |
-| 10 | S05 준비 — 코드 준비 완료(병합 시) | 대시보드 1회 리허설·beta 안전 게이트·증적 체크(실계정 실행은 대기) |
+| 10 | S05 준비 — 코드 준비 완료 | 대시보드 1회 리허설·beta 안전 게이트·증적 체크(실계정 실행은 대기) |
 
 이후 실제 창구에서 S05를 통과하고 S06 → S08 → S09 순서로 한 사이클을 닫는다.
 
@@ -535,11 +554,11 @@ S00~S14와 유료 결제 1건 이후에만 시작한다.
 
 | migration | 목적 |
 |---|---|
-| `0002_tenant_reference_integrity.sql` | 동일 tenant/municipality 참조 강제 (적용) |
-| `0003_request_readiness.sql` | 자동 신청 준비도 게이트 트리거/RPC (적용) |
-| `0004_window_schedule_identity.sql` | 창구 논리 키 unique(muni, target_period_start) (적용) |
-| `0005_credential_precheck.sql` | D-1 계정 사전 점검 기록 unique(window, credential) (적용) |
-| `0006_s05_dry_run_rehearsal.sql` | dry-run 전용 요청·완료 상태·구조화 증적 (2026-08-03 운영 적용 확인) |
+| `0002_tenant_reference_integrity.sql` | 동일 tenant/municipality 참조 강제 (사용자 운영 적용 보고, 로컬 SQL CI 통과) |
+| `0003_request_readiness.sql` | 자동 신청 준비도 게이트 트리거/RPC (사용자 운영 적용 보고, 로컬 SQL CI 통과) |
+| `0004_window_schedule_identity.sql` | 창구 논리 키 unique(muni, target_period_start) (사용자 운영 적용 보고, 로컬 SQL CI 통과) |
+| `0005_credential_precheck.sql` | D-1 계정 사전 점검 기록 unique(window, credential) (사용자 운영 적용 보고, 로컬 SQL CI 통과) |
+| `0006_s05_dry_run_rehearsal.sql` | dry-run 전용 요청·완료 상태·구조화 증적 (사용자 운영 적용 보고·핵심 컬럼 3개 확인, 전체 계약 미확인; 로컬 SQL CI 통과) |
 | `0007_notification_delivery.sql` | provider ID, attempts, last_error, next_retry_at (예정) |
 | `0008_result_idempotency.sql` | 결과 source key/잡/기간 중복 방지 (예정) |
 | `0009_operator_audit.sql` | 운영자 액션 기록과 권한 (예정) |
